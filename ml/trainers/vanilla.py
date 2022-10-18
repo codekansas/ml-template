@@ -26,7 +26,7 @@ from torch.optim import Optimizer
 
 from ml.core.config import conf_field
 from ml.core.registry import register_trainer
-from ml.core.state import Phase, State
+from ml.core.state import State, set_phase
 from ml.core.types import Batch, Loss
 from ml.lr_schedulers.base import BaseLRScheduler, SchedulerAdapter
 from ml.models.base import BaseModel
@@ -116,7 +116,7 @@ class VanillaTrainer(
         lr_sched: SchedulerAdapter,
     ) -> Dict[str, Tensor]:
         with self.step_context("change_mode"):
-            task_model, state.phase = Phase.set_phase(task_model, Phase.TRAIN)
+            task_model, state.phase = set_phase(task_model, "train")
         with self.step_context("forward"), torch.cuda.amp.autocast():
             loss = task_model(batch, state)
         with self.step_context("get_single_loss"):
@@ -157,7 +157,7 @@ class VanillaTrainer(
     ) -> None:
         with torch.no_grad():
             with self.step_context("change_mode"):
-                task_model, state.phase = Phase.set_phase(task_model, Phase.VALID)
+                task_model, state.phase = set_phase(task_model, "valid")
             with self.step_context("forward"), torch.cuda.amp.autocast():
                 loss = task_model(batch, state)
             with self.step_context("get_single_loss"):
@@ -182,7 +182,7 @@ class VanillaTrainer(
     ) -> None:
         with torch.no_grad():
             with self.step_context("change_mode"):
-                task_model, state.phase = Phase.set_phase(task_model, Phase.TEST)
+                task_model, state.phase = set_phase(task_model, "test")
             with self.step_context("forward"), torch.cuda.amp.autocast():
                 loss = task_model(batch, state)
             with self.step_context("get_single_loss"):
@@ -234,12 +234,12 @@ class VanillaTrainer(
         lr_sched = lr_scheduler.get(optim)
 
         # Gets the datasets.
-        train_ds = task.get_dataset(Phase.TRAIN)
-        valid_ds = task.get_dataset(Phase.VALID)
+        train_ds = task.get_dataset("train")
+        valid_ds = task.get_dataset("valid")
 
         # Gets the dataloaders.
-        train_dl = task.get_dataloader(train_ds, Phase.TRAIN)
-        valid_dl = task.get_dataloader(valid_ds, Phase.VALID)
+        train_dl = task.get_dataloader(train_ds, "train")
+        valid_dl = task.get_dataloader(valid_ds, "valid")
 
         # Gets the prefetchers.
         train_pf = self.device.get_prefetcher(train_dl)
@@ -343,8 +343,8 @@ class VanillaTrainer(
         self.save_config()
 
         # Gets the dataset, dataloader and prefetcher.
-        test_ds = task.get_dataset(Phase.TEST)
-        test_dl = task.get_dataloader(test_ds, Phase.TEST)
+        test_ds = task.get_dataset("test")
+        test_dl = task.get_dataloader(test_ds, "test")
         test_pf = self.device.get_prefetcher(test_dl)
 
         def load_checkpoint(ckpt_path: Path) -> State:

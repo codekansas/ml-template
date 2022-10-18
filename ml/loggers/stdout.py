@@ -78,7 +78,7 @@ class StdoutLogger(BaseLogger[StdoutLoggerConfig]):
 
         # Writes a log string to stdout.
         log_string = ", ".join(get_section_string(k, v) for k, v in sorted(phase_log_values.items()))
-        self.logger.info("%s [%s] {%s}", state.phase.name.upper(), elapsed_time_str, log_string)
+        self.logger.info("%s [%s] {%s}", state.phase, elapsed_time_str, log_string)
 
     def clear(self, state: State) -> None:
         if state.phase in self.log_values:

@@ -32,7 +32,7 @@ from torch.utils.data.sampler import Sampler
 
 from ml.core.config import BaseConfig, BaseObjectWithPointers, conf_field
 from ml.core.env import is_debugging
-from ml.core.state import Phase, State
+from ml.core.state import Phase, State, cast_phase
 from ml.core.types import Batch, Loss, Output
 from ml.loggers.base import MultiLogger
 from ml.lr_schedulers.base import SchedulerAdapter
@@ -220,7 +220,7 @@ class BaseTask(nn.Module, BaseObjectWithPointers[TaskConfigT], Generic[TaskConfi
         BaseObjectWithPointers.__init__(self, config)
 
         self.dataloader_configs: Dict[Phase, DataLoaderConfig] = {
-            Phase(k.upper()): v for k, v in config.dataloader.items()
+            cast_phase(k): v for k, v in config.dataloader.items()
         }
 
         # This flag can be toggled to end training from anywhere in the task.
@@ -238,13 +238,13 @@ class BaseTask(nn.Module, BaseObjectWithPointers[TaskConfigT], Generic[TaskConfi
         self.__final_loss_reduce_type = cast_reduce_type(self.config.loss.reduce_type)
 
     def should_log_train(self, state: State) -> bool:
-        return state.phase == Phase.TRAIN and state.num_steps % self.config.logging.train_log_interval == 0
+        return state.phase == "train" and state.num_steps % self.config.logging.train_log_interval == 0
 
     def should_log_valid(self, state: State) -> bool:
-        return state.phase == Phase.VALID and state.num_valid_steps % self.config.logging.valid_log_interval == 0
+        return state.phase == "valid" and state.num_valid_steps % self.config.logging.valid_log_interval == 0
 
     def should_log_test(self, state: State) -> bool:
-        return state.phase == Phase.TEST and state.num_test_steps % self.config.logging.test_log_interval == 0
+        return state.phase == "test" and state.num_test_steps % self.config.logging.test_log_interval == 0
 
     def should_log(self, state: State) -> bool:
         return self.should_log_train(state) or self.should_log_valid(state) or self.should_log_test(state)
@@ -307,15 +307,15 @@ class BaseTask(nn.Module, BaseObjectWithPointers[TaskConfigT], Generic[TaskConfi
         for k, v in loss.items():
             self.logger.log_scalar(k, v, namespace="loss")
 
-        if state.phase == Phase.TRAIN:
+        if state.phase == "train":
             self.train_timer.step(state)
             for k, v in self.train_timer.log_dict().items():
                 self.logger.log_scalar(k, v, namespace="timers")
-        elif state.phase == Phase.VALID:
+        elif state.phase == "valid":
             self.valid_timer.step(state)
             for k, v in self.valid_timer.log_dict().items():
                 self.logger.log_scalar(k, v, namespace="timers")
-        elif state.phase == Phase.TEST:
+        elif state.phase == "test":
             self.test_timer.step(state)
             for k, v in self.test_timer.log_dict().items():
                 self.logger.log_scalar(k, v, namespace="timers")

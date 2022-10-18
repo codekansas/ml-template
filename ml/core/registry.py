@@ -33,7 +33,7 @@ from omegaconf.basecontainer import BaseContainer
 
 from ml.core.config import BaseConfig, BaseObject, BaseObjectWithPointers
 from ml.core.env import get_stage_dir
-from ml.utils.colors import Color, colorize
+from ml.utils.colors import colorize
 from ml.utils.paths import is_relative_to
 from ml.utils.timer import Timer
 
@@ -512,7 +512,7 @@ class Objects:
             parts["Optimizer"] = inspect.getfile(self.optimizer.__class__)
         if self.lr_scheduler is not None:
             parts["LR Scheduler"] = inspect.getfile(self.lr_scheduler.__class__)
-        return "Components:" + "".join(f"\n ↪ {colorize(k, Color.GREEN)}: {v}" for k, v in parts.items())
+        return "Components:" + "".join(f"\n ↪ {colorize(k, 'green')}: {v}" for k, v in parts.items())
 
     @classmethod
     def resolve_config(cls, config: DictConfig) -> None:

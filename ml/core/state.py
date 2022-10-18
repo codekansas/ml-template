@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
-from typing import Tuple, TypeVar
+from typing import Literal, Tuple, TypeVar, cast, get_args
 
 from omegaconf import MISSING
 from torch import nn
@@ -9,34 +8,24 @@ from ml.core.config import conf_field
 
 Module = TypeVar("Module", bound=nn.Module)
 
+Phase = Literal["train", "valid", "test"]
 
-class Phase(Enum):
-    TRAIN = "TRAIN"
-    VALID = "VALID"
-    TEST = "TEST"
 
-    @property
-    def is_train(self) -> bool:
-        return self == Phase.TRAIN
+def set_phase(model: Module, phase: Phase) -> Tuple[Module, Phase]:
+    if phase == "train":
+        if not model.training:
+            model = model.train()
+        return model, phase
+    else:
+        if model.training:
+            model = model.eval()
+        return model, phase
 
-    @property
-    def is_valid(self) -> bool:
-        return self == Phase.VALID
 
-    @property
-    def is_test(self) -> bool:
-        return self == Phase.TEST
-
-    @staticmethod
-    def set_phase(model: Module, phase: "Phase") -> Tuple[Module, "Phase"]:
-        if phase == Phase.TRAIN:
-            if not model.training:
-                model = model.train()
-            return model, phase
-        else:
-            if model.training:
-                model = model.eval()
-            return model, phase
+def cast_phase(raw_phase: str) -> Phase:
+    args = get_args(Phase)
+    assert raw_phase in args, f"Invalid phase: '{raw_phase}' Valid options are {args}"
+    return cast(Phase, raw_phase)
 
 
 @dataclass
@@ -48,7 +37,15 @@ class State:
     num_samples: int = conf_field(MISSING, help="Number of sample so far")
     num_valid_steps: int = conf_field(MISSING, help="Number of validation steps so far")
     num_test_steps: int = conf_field(MISSING, help="Number of test steps so far")
-    phase: Phase = conf_field(MISSING, help="Current training phase")
+    raw_phase: str = conf_field(MISSING, help="Current training phase")
+
+    @property
+    def phase(self) -> Phase:
+        return cast_phase(self.raw_phase)
+
+    @phase.setter
+    def phase(self, new_phase: Phase) -> None:
+        self.raw_phase = new_phase
 
     @classmethod
     def init_state(cls) -> "State":
@@ -58,9 +55,9 @@ class State:
             num_samples=0,
             num_valid_steps=0,
             num_test_steps=0,
-            phase=Phase.TRAIN,
+            raw_phase="train",
         )
 
     @property
     def training(self) -> bool:
-        return self.phase == Phase.TRAIN
+        return self.phase == "train"

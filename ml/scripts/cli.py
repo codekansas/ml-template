@@ -10,7 +10,7 @@ from omegaconf import DictConfig, OmegaConf
 from ml.core.env import add_global_tag, get_global_tags, set_exp_name
 from ml.core.registry import Objects
 from ml.scripts import mp_train, stage, train
-from ml.utils.colors import Color, colorize
+from ml.utils.colors import colorize
 from ml.utils.distributed import get_rank_optional, get_world_size_optional
 from ml.utils.logging import configure_logging
 from ml.utils.random import set_random_seed
@@ -107,13 +107,13 @@ def main() -> None:
     scripts: Dict[str, Callable[..., None]] = {**with_objects_scripts, **without_objects_scripts}
 
     def show_help() -> None:
-        script_names = (colorize(script_name, Color.CYAN) for script_name in scripts)
+        script_names = (colorize(script_name, "cyan") for script_name in scripts)
         print(f"Usage: tr < {' / '.join(script_names)} > ...\n", file=sys.stderr)
         for key, func in scripts.items():
             if func.__doc__ is None:
-                print(f"* {colorize(key, Color.GREEN)}\n", file=sys.stderr)
+                print(f"* {colorize(key, 'green')}\n", file=sys.stderr)
             else:
-                print(f"* {colorize(key, Color.GREEN)}: {func.__doc__.strip()}\n", file=sys.stderr)
+                print(f"* {colorize(key, 'green')}: {func.__doc__.strip()}\n", file=sys.stderr)
         sys.exit(1)
 
     # Parses the raw command line options.
@@ -138,7 +138,7 @@ def main() -> None:
         objs = Objects.parse_raw_config(config)
         with_objects_scripts[option](objs)
     else:
-        print(f"Invalid option: {colorize(option, Color.RED)}\n", file=sys.stderr)
+        print(f"Invalid option: {colorize(option, 'red')}\n", file=sys.stderr)
         show_help()
 
 

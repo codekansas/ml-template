@@ -33,7 +33,7 @@ from ml.lr_schedulers.base import BaseLRScheduler, SchedulerAdapter
 from ml.models.base import BaseModel
 from ml.optimizers.base import BaseOptimizer
 from ml.tasks.base import BaseTask
-from ml.utils.colors import Color, colorize
+from ml.utils.colors import colorize
 from ml.utils.distributed import is_master
 from ml.utils.timer import Timer
 
@@ -201,8 +201,8 @@ def save_config(exp_dir: Path, raw_config: DictConfig) -> None:
         added_keys, deleted_keys = diff_configs(raw_config, cast(DictConfig, OmegaConf.load(config_path)))
         if added_keys or deleted_keys:
             change_lines: List[str] = []
-            change_lines += [f" ↪ {colorize('+', Color.GREEN)} {added_key}" for added_key in added_keys]
-            change_lines += [f" ↪ {colorize('-', Color.RED)} {deleted_key}" for deleted_key in deleted_keys]
+            change_lines += [f" ↪ {colorize('+', 'green')} {added_key}" for added_key in added_keys]
+            change_lines += [f" ↪ {colorize('-', 'red')} {deleted_key}" for deleted_key in deleted_keys]
             change_summary = "\n".join(change_lines)
             logger.warning("Overwriting config %s:\n%s", config_path, change_summary)
             OmegaConf.save(raw_config, config_path)

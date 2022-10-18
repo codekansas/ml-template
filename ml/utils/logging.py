@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import math
 import sys
-from typing import Any
+from typing import Any, Dict
 
 import tqdm
 from torch import Tensor
@@ -47,14 +47,14 @@ class ColoredFormatter(logging.Formatter):
     COLOR_SEQ = "\033[1;%dm"
     BOLD_SEQ = "\033[1m"
 
-    COLORS = {
-        "WARNING": Color.YELLOW,
-        "INFOALL": Color.MAGENTA,
-        "INFO": Color.CYAN,
-        "DEBUG": Color.WHITE,
-        "CRITICAL": Color.YELLOW,
-        "FATAL": Color.RED,
-        "ERROR": Color.RED,
+    COLORS: Dict[str, Color] = {
+        "WARNING": "yellow",
+        "INFOALL": "magenta",
+        "INFO": "cyan",
+        "DEBUG": "white",
+        "CRITICAL": "yellow",
+        "FATAL": "red",
+        "ERROR": "red",
     }
 
     def __init__(
@@ -67,11 +67,11 @@ class ColoredFormatter(logging.Formatter):
     ):
         message = "{levelname:^19s} [{name}] {message}"
         if prefix is not None:
-            message = colorize(prefix, Color.WHITE) + " " + message
+            message = colorize(prefix, "white") + " " + message
         if rank is not None or world_size is not None:
             assert rank is not None and world_size is not None
             digits = int(math.log10(world_size) + 1)
-            message = "[" + colorize(f"{rank:>{digits}}", Color.BLUE) + "] " + message
+            message = "[" + colorize(f"{rank:>{digits}}", "blue") + "] " + message
         super().__init__(message, style="{")
 
         self.rank = rank

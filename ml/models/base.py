@@ -7,7 +7,7 @@ from torch import Tensor, nn
 
 from ml.core.config import BaseConfig, BaseObject
 from ml.loggers.base import MultiLogger
-from ml.utils.colors import Color, colorize
+from ml.utils.colors import colorize
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ ModelConfigT = TypeVar("ModelConfigT", bound=BaseModelConfig)
 
 
 def summarize(names: List[Tuple[str, torch.device]]) -> str:
-    return "".join(f"\n ↪ {colorize(k, Color.RED)} - {device}" for k, device in names)
+    return "".join(f"\n ↪ {colorize(k, 'red')} - {device}" for k, device in names)
 
 
 class BaseModel(BaseObject[ModelConfigT], Generic[ModelConfigT], nn.Module):

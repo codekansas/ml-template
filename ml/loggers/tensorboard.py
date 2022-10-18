@@ -149,11 +149,11 @@ class TensorboardLogger(BaseLogger[TensorboardLoggerConfig]):
         )
 
     def get_writer(self, phase: Phase) -> SummaryWriter:
-        if phase == Phase.TRAIN:
+        if phase == "train":
             return self.train_writer
-        if phase == Phase.VALID:
+        if phase == "valid":
             return self.valid_writer
-        if phase == Phase.TEST:
+        if phase == "test":
             return self.test_writer
         raise NotImplementedError(f"Unexpected phase: {phase}")
 

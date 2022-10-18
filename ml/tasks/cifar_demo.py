@@ -42,6 +42,6 @@ class CIFARDemoTask(BaseTask[CIFARDemoTaskConfig]):
     def get_dataset(self, phase: Phase) -> Dataset:
         return torchvision.datasets.CIFAR10(
             root=get_data_dir(),
-            train=phase == Phase.TRAIN,
+            train=phase == "train",
             download=True,
         )
