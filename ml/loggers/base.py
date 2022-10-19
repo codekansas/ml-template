@@ -158,6 +158,11 @@ class BaseLogger(BaseObjectWithPointers[LoggerConfigT], Generic[LoggerConfigT], 
         """
 
 
+def _aminmax(t: Tensor) -> Tuple[Tensor, Tensor]:
+    # `aminmax` isn't supported for MPS tensors, fall back to separate calls.
+    return (t.min(), t.max()) if t.is_mps else tuple(t.aminmax())
+
+
 def standardize_image(image: Tensor, *, log_key: str | None = None, normalize: bool = True) -> Tensor:
     """Converts an arbitrary image to shape (C, H, W).
 
@@ -174,7 +179,7 @@ def standardize_image(image: Tensor, *, log_key: str | None = None, normalize: b
     """
 
     if normalize and image.is_floating_point():
-        minv, maxv = image.aminmax()
+        minv, maxv = _aminmax(image)
         maxv.clamp_min_(1.0)
         minv.clamp_max_(0.0)
         image = torch.clamp((image.detach() - minv) / (maxv - minv), 0.0, 1.0)
@@ -212,9 +217,7 @@ def standardize_images(
     """
 
     if normalize and images.is_floating_point():
-        if images.is_mps:
-            images = images.cpu()  # aminmax not supported for MPS devices.
-        minv, maxv = images.aminmax()
+        minv, maxv = _aminmax(images)
         maxv.clamp_min_(1.0)
         minv.clamp_max_(0.0)
         images = torch.clamp((images.detach() - minv) / (maxv - minv), 0.0, 1.0)
@@ -246,7 +249,7 @@ def standardize_video(video: Tensor, *, log_key: str | None = None, normalize: b
     """
 
     if normalize and video.is_floating_point():
-        minv, maxv = video[-1].aminmax()
+        minv, maxv = _aminmax(video[-1])
         maxv.clamp_min_(1.0)
         minv.clamp_max_(0.0)
         video = torch.clamp((video.detach() - minv) / (maxv - minv), 0.0, 1.0)
@@ -284,7 +287,7 @@ def standardize_videos(
     """
 
     if normalize and videos.is_floating_point():
-        minv, maxv = videos[:, -1].aminmax()
+        minv, maxv = _aminmax(videos[:, -1])
         maxv.clamp_min_(1.0)
         minv.clamp_max_(0.0)
         videos = torch.clamp((videos.detach() - minv) / (maxv - minv), 0.0, 1.0)
