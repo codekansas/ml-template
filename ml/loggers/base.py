@@ -160,7 +160,8 @@ class BaseLogger(BaseObjectWithPointers[LoggerConfigT], Generic[LoggerConfigT], 
 
 def _aminmax(t: Tensor) -> Tuple[Tensor, Tensor]:
     # `aminmax` isn't supported for MPS tensors, fall back to separate calls.
-    return (t.min(), t.max()) if t.is_mps else tuple(t.aminmax())
+    minv, maxv = (t.min(), t.max()) if t.is_mps else tuple(t.aminmax())
+    return minv, maxv
 
 
 def standardize_image(image: Tensor, *, log_key: str | None = None, normalize: bool = True) -> Tensor:
