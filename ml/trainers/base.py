@@ -213,7 +213,7 @@ def save_config(exp_dir: Path, raw_config: DictConfig) -> None:
 
 
 @dataclass
-class LoggingConfig:
+class ValidationConfig:
     valid_every_n_steps: Optional[int] = conf_field(100, help="Number of training steps to run per test step")
     num_init_valid_steps: Optional[int] = conf_field(2, help="Number of initial validation steps")
 
@@ -232,7 +232,7 @@ class BaseTrainerConfig(BaseConfig):
     log_dir_name: str = conf_field("logs", help="Name of the subdirectory which contains logs")
     base_run_dir: str = conf_field(II("resolve:${oc.env:RUN_DIR}"), help="The base directory for all runs")
     run_id: int = conf_field(MISSING, help="The run ID to use")
-    logging: LoggingConfig = LoggingConfig()
+    validation: ValidationConfig = ValidationConfig()
     checkpoint: CheckpointConfig = CheckpointConfig()
 
     @classmethod
@@ -256,7 +256,6 @@ class BaseTrainer(BaseObjectWithPointers[TrainerConfigT], Generic[TrainerConfigT
 
         self.exp_dir = get_exp_dir(Path(config.base_run_dir), config.exp_name, config.run_id)
         self.log_dir = self.exp_dir / config.log_dir_name
-        self.logging_config = config.logging
         self.checkpoint_config = config.checkpoint
         self.loggers = []
         self.logger = MultiLogger(default_namespace="trainer")

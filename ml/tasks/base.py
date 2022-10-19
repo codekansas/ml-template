@@ -187,13 +187,6 @@ class FinishTrainingConfig:
 
 
 @dataclass
-class LoggingConfig:
-    train_log_interval: int = conf_field(100, help="How often to log train images")
-    valid_log_interval: int = conf_field(1, help="How often to log validation images")
-    test_log_interval: int = conf_field(1, help="How often to log test images")
-
-
-@dataclass
 class LossConfig:
     reduce_type: str = conf_field("mean", help="Loss reduction type to use")
 
@@ -204,7 +197,6 @@ class BaseTaskConfig(BaseConfig):
 
     dataloader: Dict[str, DataLoaderConfig] = conf_field(lambda: DEFAULT_DATALOADER_CONFIGS)
     finished: FinishTrainingConfig = FinishTrainingConfig()
-    logging: LoggingConfig = LoggingConfig()
     error_handling: ErrorHandlingConfig = ErrorHandlingConfig()
     loss: LossConfig = LossConfig()
 
@@ -236,18 +228,6 @@ class BaseTask(nn.Module, BaseObjectWithPointers[TaskConfigT], Generic[TaskConfi
 
         # Final loss reduce type.
         self.__final_loss_reduce_type = cast_reduce_type(self.config.loss.reduce_type)
-
-    def should_log_train(self, state: State) -> bool:
-        return state.phase == "train" and state.num_steps % self.config.logging.train_log_interval == 0
-
-    def should_log_valid(self, state: State) -> bool:
-        return state.phase == "valid" and state.num_valid_steps % self.config.logging.valid_log_interval == 0
-
-    def should_log_test(self, state: State) -> bool:
-        return state.phase == "test" and state.num_test_steps % self.config.logging.test_log_interval == 0
-
-    def should_log(self, state: State) -> bool:
-        return self.should_log_train(state) or self.should_log_valid(state) or self.should_log_test(state)
 
     @abstractmethod
     def run_model(self, model: BaseModel, batch: Batch, state: State) -> Output:

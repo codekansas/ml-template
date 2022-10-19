@@ -36,7 +36,12 @@ class CIFARDemoTask(BaseTask[CIFARDemoTaskConfig]):
         state: State,
         output: Tensor,
     ) -> Tensor:
-        (_, classes), preds = batch, output
+        (image, classes), preds = batch, output
+
+        # Logs training and validation images using each logger.
+        if state.phase in ("valid", "test"):
+            self.logger.log_images("image", image)
+
         return F.cross_entropy(preds, classes.flatten().long(), reduction="none")
 
     def get_dataset(self, phase: Phase) -> Dataset:

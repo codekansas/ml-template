@@ -212,6 +212,8 @@ def standardize_images(
     """
 
     if normalize and images.is_floating_point():
+        if images.is_mps:
+            images = images.cpu()  # aminmax not supported for MPS devices.
         minv, maxv = images.aminmax()
         maxv.clamp_min_(1.0)
         minv.clamp_max_(0.0)

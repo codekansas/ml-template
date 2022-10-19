@@ -268,7 +268,7 @@ class VanillaTrainer(
                 if profile is not None:
                     ctx.enter_context(profile)
 
-                if (num_init_valid_steps := self.logging_config.num_init_valid_steps) is not None:
+                if (num_init_valid_steps := self.config.validation.num_init_valid_steps) is not None:
                     for _ in range(num_init_valid_steps):
                         self.val_step(
                             task_model=task_model,
@@ -302,7 +302,7 @@ class VanillaTrainer(
                             lr_sched=lr_sched,
                         )
 
-                        valid_every_n_steps = self.logging_config.valid_every_n_steps
+                        valid_every_n_steps = self.config.validation.valid_every_n_steps
                         if valid_every_n_steps is not None and state.num_steps % valid_every_n_steps == 0:
                             self.val_step(
                                 task_model=task_model,
