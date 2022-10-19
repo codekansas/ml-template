@@ -13,6 +13,10 @@ from torch import Tensor
 CollateMode = Literal["stack", "concat"]
 
 
+def is_named_tuple(obj: Any) -> bool:
+    return isinstance(obj, tuple) and hasattr(obj, "_asdict") and hasattr(obj, "_fields")
+
+
 def collate(items: List[Any], *, mode: CollateMode | Callable[[List[Tensor]], Tensor] = "stack") -> Any | None:
     """Defines a general-purpose collating function.
 
@@ -73,6 +77,10 @@ def collate(items: List[Any], *, mode: CollateMode | Callable[[List[Tensor]], Te
         output_list = []
         for j in range(len(item)):
             output_list.append(collate([i[j] for i in items], mode=mode))
+        if is_named_tuple(item):
+            return type(item)(*output_list)  # type: ignore
+        if isinstance(item, tuple):
+            return tuple(output_list)
         return output_list
 
     # Handles dataclasses.
