@@ -70,10 +70,10 @@ def get_name(key: str, config: BaseContainer) -> str:
     if not isinstance(config, DictConfig):
         raise ValueError(f"Expected {key} config to be a dictionary, got {type(config)}")
     if NAME_KEY not in config:
-        raise ValueError(f"Malformed config; missing expected key {NAME_KEY}")
+        raise ValueError(f"Malformed {key} config; missing expected key {NAME_KEY}")
     name = config[NAME_KEY]
     if not isinstance(name, str):
-        raise ValueError(f"Expected name to be a string, got {name}")
+        raise ValueError(f"Expected {key} name to be a string, got {name}")
     return name
 
 
