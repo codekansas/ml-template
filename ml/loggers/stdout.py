@@ -4,7 +4,7 @@ import datetime
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from torch import Tensor
 
@@ -25,7 +25,7 @@ class StdoutLogger(BaseLogger[StdoutLoggerConfig]):
     def __init__(self, config: StdoutLoggerConfig) -> None:
         super().__init__(config)
 
-        self.log_values: Dict[Phase, Dict[str, Dict[str, Any]]] = {}
+        self.log_values: Dict[Phase, Dict[str, Dict[str, Callable[[], Any]]]] = {}
         self.logger = logging.getLogger("stdout")
 
     def initialize(self, log_directory: Path) -> None:
@@ -36,7 +36,7 @@ class StdoutLogger(BaseLogger[StdoutLoggerConfig]):
         self.logger.addHandler(file_handler)
         self.logger.debug("Finished initializing logger")
 
-    def get_log_dict(self, state: State, namespace: Optional[str]) -> Dict[str, Any]:
+    def get_log_dict(self, state: State, namespace: Optional[str]) -> Dict[str, Callable[[], Any]]:
         if namespace is None:
             namespace = "default"
         if state.phase not in self.log_values:
@@ -50,10 +50,10 @@ class StdoutLogger(BaseLogger[StdoutLoggerConfig]):
             return str(value)
         return f"{value:.{self.config.precision}g}"
 
-    def log_scalar(self, key: str, value: int | float | Tensor, state: State, namespace: str) -> None:
+    def log_scalar(self, key: str, value: Callable[[], int | float | Tensor], state: State, namespace: str) -> None:
         self.get_log_dict(state, namespace)[key] = value
 
-    def log_string(self, key: str, value: str, state: State, namespace: str) -> None:
+    def log_string(self, key: str, value: Callable[[], str], state: State, namespace: str) -> None:
         self.get_log_dict(state, namespace)[key] = value
 
     def write(self, state: State) -> None:
@@ -74,7 +74,7 @@ class StdoutLogger(BaseLogger[StdoutLoggerConfig]):
             raise TypeError(f"Unexpected log type: {type(value)}")
 
         def get_section_string(name: str, section: Dict[str, Any]) -> str:
-            return '"' + name + '": {' + ", ".join(f'"{k}": {as_str(v)}' for k, v in sorted(section.items())) + "}"
+            return '"' + name + '": {' + ", ".join(f'"{k}": {as_str(v())}' for k, v in sorted(section.items())) + "}"
 
         # Writes a log string to stdout.
         log_string = ", ".join(get_section_string(k, v) for k, v in sorted(phase_log_values.items()))

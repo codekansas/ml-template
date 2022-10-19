@@ -4,7 +4,7 @@ import atexit
 import datetime
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Set, Type
+from typing import Any, Callable, Dict, Optional, Set, Type
 
 import pandas as pd
 from torch import Tensor
@@ -39,7 +39,7 @@ class PandasLogger(BaseLogger[PandasLoggerConfig]):
     def __init__(self, config: PandasLoggerConfig) -> None:
         super().__init__(config)
 
-        self.log_values: Dict[Phase, Dict[str, Dict[str, Any]]] = {}
+        self.log_values: Dict[Phase, Dict[str, Dict[str, Callable[[], Any]]]] = {}
         self.types: Dict[str, Type] = {}
         self.df = pd.DataFrame()
 
@@ -70,7 +70,7 @@ class PandasLogger(BaseLogger[PandasLoggerConfig]):
             raise KeyError(f"Can't add {key} column, it already exists")
         self.df[key] = [pd.NA] * self.num_rows
 
-    def get_log_dict(self, state: State, namespace: Optional[str]) -> Dict[str, Any]:
+    def get_log_dict(self, state: State, namespace: Optional[str]) -> Dict[str, Callable[[], Any]]:
         if namespace is None:
             namespace = "default"
         if state.phase not in self.log_values:
@@ -86,17 +86,17 @@ class PandasLogger(BaseLogger[PandasLoggerConfig]):
         elif not isinstance(value, self.types[namespace_key]):
             raise ValueError(f"Unexpected value type {type(value)} for {key}; expected {self.types[namespace_key]}")
 
-    def add_item(self, key: str, value: Any, state: State, namespace: str) -> None:
+    def add_item(self, key: str, value: Callable[[], Any], state: State, namespace: str) -> None:
         self.check_type(key, value, namespace)
         log_dict = self.get_log_dict(state, namespace)
         if key in log_dict:
             raise KeyError(f"Trying to insert duplicate values for {key}")
         log_dict[key] = value
 
-    def log_scalar(self, key: str, value: int | float | Tensor, state: State, namespace: str) -> None:
+    def log_scalar(self, key: str, value: Callable[[], int | float | Tensor], state: State, namespace: str) -> None:
         self.add_item(key, value, state, namespace)
 
-    def log_string(self, key: str, value: str, state: State, namespace: str) -> None:
+    def log_string(self, key: str, value: Callable[[], str], state: State, namespace: str) -> None:
         self.add_item(key, value, state, namespace)
 
     def write(self, state: State) -> None:
@@ -104,11 +104,10 @@ class PandasLogger(BaseLogger[PandasLoggerConfig]):
             return
 
         # Gets elapsed time since last write.
-        elapsed_time = datetime.datetime.now() - self.start_time
-        self.add_item("elapsed_time", elapsed_time, state, namespace="timers")
+        self.add_item("elapsed_time", lambda: datetime.datetime.now() - self.start_time, state, namespace="timers")
 
-        # Flattens log values.
-        log_values = {f"{k}_{kk}": get_log_item(vv) for k, v in phase_log_values.items() for kk, vv in v.items()}
+        # Flattens log values and calls item functions.
+        log_values = {f"{k}_{kk}": get_log_item(vv()) for k, v in phase_log_values.items() for kk, vv in v.items()}
 
         # Adds missing columns.
         missing_columns = {column for column in log_values.keys() if column not in self.columns}

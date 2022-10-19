@@ -10,7 +10,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 import torch
 from omegaconf import MISSING, OmegaConf
@@ -60,12 +60,12 @@ class TensorboardLogger(BaseLogger[TensorboardLoggerConfig]):
     def __init__(self, config: TensorboardLoggerConfig) -> None:
         super().__init__(config)
 
-        self.scalars: Dict[Phase, Dict[str, int | float | Tensor]] = defaultdict(dict)
-        self.strings: Dict[Phase, Dict[str, str]] = defaultdict(dict)
-        self.images: Dict[Phase, Dict[str, Tensor]] = defaultdict(dict)
-        self.videos: Dict[Phase, Dict[str, Tensor]] = defaultdict(dict)
-        self.histograms: Dict[Phase, Dict[str, Tensor]] = defaultdict(dict)
-        self.point_clouds: Dict[Phase, Dict[str, Tensor]] = defaultdict(dict)
+        self.scalars: Dict[Phase, Dict[str, Callable[[], int | float | Tensor]]] = defaultdict(dict)
+        self.strings: Dict[Phase, Dict[str, Callable[[], str]]] = defaultdict(dict)
+        self.images: Dict[Phase, Dict[str, Callable[[], Tensor]]] = defaultdict(dict)
+        self.videos: Dict[Phase, Dict[str, Callable[[], Tensor]]] = defaultdict(dict)
+        self.histograms: Dict[Phase, Dict[str, Callable[[], Tensor]]] = defaultdict(dict)
+        self.point_clouds: Dict[Phase, Dict[str, Callable[[], Tensor]]] = defaultdict(dict)
 
         self.line_str: str | None = None
         self.last_tensorboard_write_time = time.time()
@@ -157,22 +157,22 @@ class TensorboardLogger(BaseLogger[TensorboardLoggerConfig]):
             return self.test_writer
         raise NotImplementedError(f"Unexpected phase: {phase}")
 
-    def log_scalar(self, key: str, value: int | float | Tensor, state: State, namespace: str) -> None:
+    def log_scalar(self, key: str, value: Callable[[], int | float | Tensor], state: State, namespace: str) -> None:
         self.scalars[state.phase][f"{namespace}/{key}"] = value
 
-    def log_string(self, key: str, value: str, state: State, namespace: str) -> None:
+    def log_string(self, key: str, value: Callable[[], str], state: State, namespace: str) -> None:
         self.strings[state.phase][f"{namespace}/{key}"] = value
 
-    def log_image(self, key: str, value: Tensor, state: State, namespace: str) -> None:
+    def log_image(self, key: str, value: Callable[[], Tensor], state: State, namespace: str) -> None:
         self.images[state.phase][f"{namespace}/{key}"] = value
 
-    def log_video(self, key: str, value: Tensor, state: State, namespace: str) -> None:
+    def log_video(self, key: str, value: Callable[[], Tensor], state: State, namespace: str) -> None:
         self.videos[state.phase][f"{namespace}/{key}"] = value
 
-    def log_histogram(self, key: str, value: Tensor, state: State, namespace: str) -> None:
+    def log_histogram(self, key: str, value: Callable[[], Tensor], state: State, namespace: str) -> None:
         self.histograms[state.phase][f"{namespace}/{key}"] = value
 
-    def log_point_cloud(self, key: str, value: Tensor, state: State, namespace: str) -> None:
+    def log_point_cloud(self, key: str, value: Callable[[], Tensor], state: State, namespace: str) -> None:
         self.point_clouds[state.phase][f"{namespace}/{key}"] = value
 
     def write(self, state: State) -> None:
@@ -183,16 +183,17 @@ class TensorboardLogger(BaseLogger[TensorboardLoggerConfig]):
                 self.last_tensorboard_write_time = cur_time
         writer = self.get_writer(state.phase)
         for scalar_key, scalar_value in self.scalars[state.phase].items():
-            writer.add_scalar(scalar_key, scalar_value, global_step=state.num_steps)
+            writer.add_scalar(scalar_key, scalar_value(), global_step=state.num_steps)
         for string_key, string_value in self.strings[state.phase].items():
-            writer.add_text(string_key, string_value, global_step=state.num_steps)
+            writer.add_text(string_key, string_value(), global_step=state.num_steps)
         for image_key, image_value in self.images[state.phase].items():
-            writer.add_image(image_key, image_value, global_step=state.num_steps)
+            writer.add_image(image_key, image_value(), global_step=state.num_steps)
         for video_key, video_value in self.videos[state.phase].items():
-            writer.add_video(video_key, video_value.unsqueeze(0), global_step=state.num_steps, fps=TARGET_FPS)
+            writer.add_video(video_key, video_value().unsqueeze(0), global_step=state.num_steps, fps=TARGET_FPS)
         for hist_key, hist_value in self.histograms[state.phase].items():
-            writer.add_histogram(hist_key, hist_value, global_step=state.num_steps)
-        for pc_key, pc_value in self.point_clouds[state.phase].items():
+            writer.add_histogram(hist_key, hist_value(), global_step=state.num_steps)
+        for pc_key, pc_value_func in self.point_clouds[state.phase].items():
+            pc_value = pc_value_func()
             bsz, _, _ = pc_value.shape
             colors = torch.randint(0, 255, (bsz, 1, 3), device=pc_value.device).expand_as(pc_value)
             pc_value, colors = pc_value.flatten(0, 1).unsqueeze(0), colors.flatten(0, 1).unsqueeze(0)

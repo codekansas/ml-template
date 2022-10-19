@@ -268,8 +268,8 @@ class BaseTask(nn.Module, BaseObjectWithPointers[TaskConfigT], Generic[TaskConfi
                 same shape.
 
         Returns:
-            The single loss with shape (N, B), where N is the number of losses
-            and B is the batch size, and the loss names, a list of length N.
+            The single loss with shape (N), where N is the number of losses,
+            and the loss names, a list of length N.
         """
 
         if isinstance(loss, Tensor):
@@ -280,7 +280,7 @@ class BaseTask(nn.Module, BaseObjectWithPointers[TaskConfigT], Generic[TaskConfi
             assert loss_tensor.ndim >= 1, f"Loss {key} must not be a scalar"
         keys = list(sorted(loss.keys()))
         single_loss = torch.stack([loss[k] for k in keys], dim=0)
-        single_loss = reduce(single_loss.flatten(1), self.__final_loss_reduce_type, 0)
+        single_loss = reduce(single_loss.flatten(1), self.__final_loss_reduce_type, 1)
         return single_loss, keys
 
     def log_loss_dict(self, loss: Mapping[str, int | float | Tensor], state: State) -> None:

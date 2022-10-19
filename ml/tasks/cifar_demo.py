@@ -38,7 +38,12 @@ class CIFARDemoTask(BaseTask[CIFARDemoTaskConfig]):
     ) -> Tensor:
         (image, classes), preds = batch, output
 
-        # Logs training and validation images using each logger.
+        # Passing in a callable function ensures that we don't compute the
+        # metric unless it's going to be logged, for example, when the logger
+        # is rate-limited.
+        self.logger.log_scalar("accuracy", lambda: (classes == preds.argmax(dim=1, keepdim=True)).float().mean())
+
+        # On validation and test steps, logs images to each image logger.
         if state.phase in ("valid", "test"):
             self.logger.log_images("image", image)
 

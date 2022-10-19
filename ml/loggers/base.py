@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import datetime
+import functools
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Generic, List, Tuple, TypeVar
+from typing import Callable, Dict, Generic, List, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -16,6 +17,7 @@ from ml.core.config import BaseConfig, BaseObjectWithPointers, conf_field
 from ml.core.state import Phase, State
 
 LogT = TypeVar("LogT")
+Number = Union[int, float, Tensor]
 
 DEFAULT_NAMESPACE = "value"
 VALID_CHANNEL_COUNTS = {1, 3}
@@ -55,7 +57,7 @@ class BaseLogger(BaseObjectWithPointers[LoggerConfigT], Generic[LoggerConfigT], 
             return torch.from_numpy(value)
         return value.detach().cpu()
 
-    def log_scalar(self, key: str, value: int | float | Tensor, state: State, namespace: str) -> None:
+    def log_scalar(self, key: str, value: Callable[[], Number], state: State, namespace: str) -> None:
         """Logs a scalar value.
 
         Args:
@@ -65,7 +67,7 @@ class BaseLogger(BaseObjectWithPointers[LoggerConfigT], Generic[LoggerConfigT], 
             namespace: The namespace to be logged
         """
 
-    def log_string(self, key: str, value: str, state: State, namespace: str) -> None:
+    def log_string(self, key: str, value: Callable[[], str], state: State, namespace: str) -> None:
         """Logs a string value.
 
         Args:
@@ -75,7 +77,7 @@ class BaseLogger(BaseObjectWithPointers[LoggerConfigT], Generic[LoggerConfigT], 
             namespace: The namespace to be logged
         """
 
-    def log_image(self, key: str, value: Tensor, state: State, namespace: str) -> None:
+    def log_image(self, key: str, value: Callable[[], Tensor], state: State, namespace: str) -> None:
         """Logs a normalized image, with shape (C, H, W).
 
         Args:
@@ -85,7 +87,7 @@ class BaseLogger(BaseObjectWithPointers[LoggerConfigT], Generic[LoggerConfigT], 
             namespace: The namespace to be logged
         """
 
-    def log_video(self, key: str, value: Tensor, state: State, namespace: str) -> None:
+    def log_video(self, key: str, value: Callable[[], Tensor], state: State, namespace: str) -> None:
         """Logs a normalized video, with shape (T, C, H, W).
 
         Args:
@@ -95,7 +97,7 @@ class BaseLogger(BaseObjectWithPointers[LoggerConfigT], Generic[LoggerConfigT], 
             namespace: The namespace to be logged
         """
 
-    def log_histogram(self, key: str, value: Tensor, state: State, namespace: str) -> None:
+    def log_histogram(self, key: str, value: Callable[[], Tensor], state: State, namespace: str) -> None:
         """Logs a histogram, with any shape.
 
         Args:
@@ -105,7 +107,7 @@ class BaseLogger(BaseObjectWithPointers[LoggerConfigT], Generic[LoggerConfigT], 
             namespace: The namespace to be logged
         """
 
-    def log_point_cloud(self, key: str, value: Tensor, state: State, namespace: str) -> None:
+    def log_point_cloud(self, key: str, value: Callable[[], Tensor], state: State, namespace: str) -> None:
         """Logs a normalized point cloud, with shape (B, N, 3).
 
         Args:
@@ -433,71 +435,95 @@ class MultiLogger:
     """Defines an intermediate container which holds values to log somewhere else."""
 
     def __init__(self, default_namespace: str = DEFAULT_NAMESPACE) -> None:
-        self.scalars: Dict[str, Dict[str, int | float | Tensor]] = defaultdict(dict)
-        self.strings: Dict[str, Dict[str, str]] = defaultdict(dict)
-        self.images: Dict[str, Dict[str, Tensor]] = defaultdict(dict)
-        self.videos: Dict[str, Dict[str, Tensor]] = defaultdict(dict)
-        self.histograms: Dict[str, Dict[str, Tensor]] = defaultdict(dict)
-        self.point_clouds: Dict[str, Dict[str, Tensor]] = defaultdict(dict)
+        self.scalars: Dict[str, Dict[str, Callable[[], Number]]] = defaultdict(dict)
+        self.strings: Dict[str, Dict[str, Callable[[], str]]] = defaultdict(dict)
+        self.images: Dict[str, Dict[str, Callable[[], Tensor]]] = defaultdict(dict)
+        self.videos: Dict[str, Dict[str, Callable[[], Tensor]]] = defaultdict(dict)
+        self.histograms: Dict[str, Dict[str, Callable[[], Tensor]]] = defaultdict(dict)
+        self.point_clouds: Dict[str, Dict[str, Callable[[], Tensor]]] = defaultdict(dict)
+        self.poses: Dict[str, Dict[str, Callable[[], Tensor]]] = defaultdict(dict)
         self.default_namespace = default_namespace
 
     def resolve_namespace(self, namespace: str | None = None) -> str:
         return self.default_namespace if namespace is None else namespace
 
-    def log_scalar(self, key: str, value: int | float | Tensor, *, namespace: str | None = None) -> None:
-        assert isinstance(value, (int, float, Tensor))
+    def log_scalar(self, key: str, value: Callable[[], Number] | Number, *, namespace: str | None = None) -> None:
         namespace = self.resolve_namespace(namespace)
-        self.scalars[namespace][key] = value
 
-    def log_string(
-        self,
-        key: str,
-        value: str,
-        *,
-        namespace: str | None = None,
-    ) -> None:
-        assert isinstance(value, str)
-        namespace = self.resolve_namespace(namespace)
-        self.strings[namespace][key] = value
+        @functools.lru_cache
+        def scalar_future() -> Number:
+            value_concrete = value() if callable(value) else value
+            assert isinstance(value_concrete, (int, float, Tensor))
+            return value_concrete
 
-    def log_image(self, key: str, value: Tensor, *, namespace: str | None = None) -> None:
+        self.scalars[namespace][key] = scalar_future
+
+    def log_string(self, key: str, value: Callable[[], str] | str, *, namespace: str | None = None) -> None:
         namespace = self.resolve_namespace(namespace)
-        assert isinstance(value, Tensor)
-        self.images[namespace][key] = standardize_image(value, log_key=f"{namespace}/{key}")
+
+        @functools.lru_cache
+        def value_future() -> str:
+            value_concrete = value() if callable(value) else value
+            assert isinstance(value_concrete, str)
+            return value_concrete
+
+        self.strings[namespace][key] = value_future
+
+    def log_image(self, key: str, value: Callable[[], Tensor] | Tensor, *, namespace: str | None = None) -> None:
+        namespace = self.resolve_namespace(namespace)
+
+        @functools.lru_cache
+        def image_future() -> Tensor:
+            value_concrete = value() if callable(value) else value
+            assert isinstance(value_concrete, Tensor)
+            return standardize_image(value_concrete, log_key=f"{namespace}/{key}")
+
+        self.images[namespace][key] = image_future
 
     def log_images(
         self,
         key: str,
-        value: Tensor,
+        value: Callable[[], Tensor] | Tensor,
         *,
         namespace: str | None = None,
         max_images: int | None = None,
         sep: int = 0,
     ) -> None:
         namespace = self.resolve_namespace(namespace)
-        value = standardize_images(value, max_images=max_images, log_key=f"{namespace}/{key}")
-        image = make_square_image_or_video(value, sep=sep)
-        self.log_image(key, image, namespace=namespace)
+
+        @functools.lru_cache
+        def images_future() -> Tensor:
+            value_concrete = value() if callable(value) else value
+            assert isinstance(value_concrete, Tensor)
+            value_concrete = standardize_images(value_concrete, max_images=max_images, log_key=f"{namespace}/{key}")
+            return make_square_image_or_video(value_concrete, sep=sep)
+
+        self.images[namespace][key] = images_future
 
     def log_video(
         self,
         key: str,
-        value: Tensor,
+        value: Callable[[], Tensor] | Tensor,
         *,
         namespace: str | None = None,
         fps: int | None = None,
         length: int | None = None,
     ) -> None:
         namespace = self.resolve_namespace(namespace)
-        assert isinstance(value, Tensor)
-        video = standardize_video(value, log_key=f"{namespace}/{key}")
-        video = normalize_fps(video, fps, length)
-        self.videos[namespace][key] = video
+
+        @functools.lru_cache
+        def video_future() -> Tensor:
+            value_concrete = value() if callable(value) else value
+            assert isinstance(value_concrete, Tensor)
+            video = standardize_video(value_concrete, log_key=f"{namespace}/{key}")
+            return normalize_fps(video, fps, length)
+
+        self.videos[namespace][key] = video_future
 
     def log_videos(
         self,
         key: str,
-        value: Tensor | List[Tensor],
+        value: Callable[[], Tensor | List[Tensor]] | Tensor | List[Tensor],
         *,
         namespace: str | None = None,
         max_videos: int | None = None,
@@ -506,38 +532,52 @@ class MultiLogger:
         length: int | None = None,
     ) -> None:
         namespace = self.resolve_namespace(namespace)
-        video = normalize_fps(value, fps, length, stack_dim=1)
-        video = standardize_videos(video, max_videos=max_videos, log_key=f"{namespace}/{key}")
-        video = make_square_image_or_video(video, sep=sep)
-        self.log_video(key, video, namespace=namespace)
+
+        @functools.lru_cache
+        def videos_future() -> Tensor:
+            value_concrete = value() if callable(value) else value
+            assert isinstance(value_concrete, (Tensor, list))
+            video = normalize_fps(value_concrete, fps, length, stack_dim=1)
+            video = standardize_videos(video, max_videos=max_videos, log_key=f"{namespace}/{key}")
+            return make_square_image_or_video(video, sep=sep)
+
+        self.videos[namespace][key] = videos_future
+
+    def log_histogram(self, key: str, value: Callable[[], Tensor] | Tensor, *, namespace: str | None = None) -> None:
+        namespace = self.resolve_namespace(namespace)
+
+        @functools.lru_cache
+        def histogram_future() -> Tensor:
+            value_concrete = value() if callable(value) else value
+            assert isinstance(value_concrete, Tensor)
+            return value_concrete
+
+        self.histograms[namespace][key] = histogram_future
 
     def log_point_cloud(
         self,
         key: str,
-        value: Tensor,
+        value: Callable[[], Tensor] | Tensor,
         *,
         namespace: str | None = None,
         max_points: int = 1000,
     ) -> None:
         namespace = self.resolve_namespace(namespace)
-        self.point_clouds[namespace][key] = standardize_point_cloud(value, max_points, log_key=f"{namespace}/{key}")
 
-    def log_histogram(
-        self,
-        key: str,
-        value: Tensor,
-        *,
-        namespace: str | None = None,
-    ) -> None:
-        namespace = self.resolve_namespace(namespace)
-        self.histograms[namespace][key] = value
+        @functools.lru_cache
+        def point_cloud_future() -> Tensor:
+            value_concrete = value() if callable(value) else value
+            assert isinstance(value_concrete, Tensor)
+            return standardize_point_cloud(value_concrete, max_points, log_key=f"{namespace}/{key}")
+
+        self.point_clouds[namespace][key] = point_cloud_future
 
     def write_dict(
         self,
         loggers: List[BaseLogger],
-        values: Dict[str, Dict[str, LogT]],
+        values: Dict[str, Dict[str, Callable[[], LogT]]],
         state: State,
-        func: Callable[[BaseLogger], Callable[[str, LogT, State, str], None]],
+        func: Callable[[BaseLogger], Callable[[str, Callable[[], LogT], State, str], None]],
     ) -> None:
         for logger in loggers:
             for namespace, value in values.items():
