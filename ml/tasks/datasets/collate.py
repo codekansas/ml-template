@@ -36,6 +36,10 @@ def collate(items: List[Any], *, mode: CollateMode | Callable[[List[Tensor]], Te
         return None
     item = items[0]
 
+    # Any None items should be filtered out.
+    if item is None:
+        return None
+
     # All Numpy arrays are converted to tensors.
     if isinstance(item, np.ndarray):
         return collate([torch.from_numpy(i) for i in items], mode=mode)
