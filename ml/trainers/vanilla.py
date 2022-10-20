@@ -12,6 +12,7 @@ Summary table:
 | loss    | E(x, o)      |
 """
 
+import atexit
 import contextlib
 import functools
 import logging
@@ -49,6 +50,10 @@ from ml.utils.distributed import is_master
 from ml.utils.timer import Timer
 
 logger = logging.getLogger(__name__)
+
+
+class TrainingFinishedException(Exception):
+    pass
 
 
 class TaskModel(nn.Module):
@@ -255,12 +260,14 @@ class VanillaTrainer(
         def on_exit() -> None:
             if is_master():
                 self.remove_lock_file("running", missing_ok=True)
-            logger.info("Finished training for %s", self.exp_dir / "config.yaml")
-            sys.exit(0)
+            logger.info("Exiting training job for %s", self.exp_dir / "config.yaml")
 
-        def on_cleanup() -> None:
+        def finish_training() -> None:
             self.save_checkpoint(state, task, model, optim, lr_sched)
-            on_exit()
+            raise TrainingFinishedException
+
+        # Always run at exit time.
+        atexit.register(on_exit)
 
         try:
             with contextlib.ExitStack() as ctx:
@@ -287,7 +294,7 @@ class VanillaTrainer(
                         self.logger.log_scalar("dt/get_batch", train_pf.get_batch_time, namespace="timers")
 
                         if task.is_training_over(state):
-                            on_cleanup()
+                            finish_training()
 
                         with self.step_context("on_step_start"):
                             self.on_step_start(state, train_batch, task, model, optim, lr_sched)
@@ -326,10 +333,11 @@ class VanillaTrainer(
 
                     state.num_epochs += 1
 
+        except TrainingFinishedException:
+            logger.info("Finished training for %s", self.exp_dir / "config.yaml")
+
         except Exception:
             logger.exception("Caught exception during training loop")
-
-        on_exit()
 
     def evaluate(self, model: BaseModel, task: BaseTask) -> None:
         """Runs the GPU-based evaluation loop.
