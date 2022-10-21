@@ -1,75 +1,15 @@
 {
-  /* Development languages */
-  "[c]": {
-    "editor.defaultFormatter": "xaver.clang-format",
-    "editor.formatOnSave": true
-  },
-  "[cu]": {
-    "editor.defaultFormatter": "xaver.clang-format",
-    "editor.formatOnSave": true
-  },
-  "[cpp]": {
-    "editor.defaultFormatter": "xaver.clang-format",
-    "editor.formatOnSave": true
-  },
-  "[cuda-cpp]": {
-    "editor.defaultFormatter": "xaver.clang-format",
-    "editor.formatOnSave": true
-  },
-  "[cmake]": {
-    "editor.defaultFormatter": "cheshirekow.cmake-format",
-    "editor.formatOnSave": true
-  },
-  "[python]": {
-    "editor.defaultFormatter": "ms-python.python",
-    "editor.codeActionsOnSave": {
-      "source.organizeImports": true
-    },
-    "editor.formatOnSave": true
-  },
-
-  /* Configuration languages */
-  "[jsonc]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.tabSize": 2,
-    "editor.formatOnSave": true
-  },
-  "[json]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.tabSize": 2,
-    "editor.formatOnSave": true
-  },
-  "[yaml]": {
-    "editor.insertSpaces": true,
-    "editor.tabSize": 2,
-    "editor.autoIndent": "advanced",
-    "editor.formatOnSave": true,
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-
-  /* Python language features */
-  "python.formatting.provider": "black",
-  "python.linting.enabled": true,
-  "python.linting.lintOnSave": true,
-  "python.linting.mypyEnabled": true,
-  "python.linting.pylintEnabled": true,
-  "python.linting.pylintArgs": [],
-  "python.linting.flake8Enabled": true,
-
-  /* CMake variables */
-  "cmake.sourceDirectory": "${workspaceFolder}/ml/cpp",
-
-  /* -------------- *
-   * Local settings *
-   * -------------- */
+  /* ------------------------------- *
+   * Requires updating $CONDA_PREFIX *
+   * ------------------------------- */
 
   "python.defaultInterpreterPath": "${env:CONDA_PREFIX}/bin/python",
 
   "cmake.cmakePath": "${env:CONDA_PREFIX}/bin/cmake",
   "cmake.configureSettings": {
     "CMAKE_PREFIX_PATH": [
-      "${env:CONDA_PREFIX}/lib/python3.10/site-packages/torch/share/cmake",
-      "${env:CONDA_PREFIX}/lib/python3.10/site-packages/pybind11/share/cmake/pybind11"
+      "${env:CONDA_PREFIX}/lib/python3.8/site-packages/torch/share/cmake",
+      "${env:CONDA_PREFIX}/lib/python3.8/site-packages/pybind11/share/cmake/pybind11"
     ],
     "TORCH_CUDA_ARCH_LIST": "'3.7;5.0;6.0;7.0;7.5;8.0;8.6'",
 

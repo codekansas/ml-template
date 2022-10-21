@@ -1,11 +1,5 @@
 # .gitignore
 
-# IDEs
-.vscode/settings.json
-
-# Go
-.go/
-
 # Python
 *.py[oc]
 __pycache__/
@@ -18,5 +12,3 @@ __pycache__/
 build/
 dist/
 *.so
-built.txt
-requirements/.*-installed.txt

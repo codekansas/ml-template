@@ -9,7 +9,7 @@ This is a general-purpose template for machine learning projects in PyTorch. It 
 First, create a Conda environment:
 
 ```bash
-conda create --name ml python=3.10
+conda create --name ml python=3.8
 ```
 
 Next, install the project dependencies:
