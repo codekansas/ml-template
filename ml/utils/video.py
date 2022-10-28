@@ -3,7 +3,7 @@ from __future__ import annotations
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterator, Optional
+from typing import Callable, Dict, Iterator, Literal, Optional
 
 import cv2
 import ffmpeg
@@ -242,12 +242,15 @@ def write_video_matplotlib(
             mpl_writer.grab_frame()
 
 
-READERS: Dict[str, Callable[[str | Path], Iterator[np.ndarray]]] = {
+Reader = Literal["ffmpeg", "opencv"]
+Writer = Literal["ffmpeg", "matplotlib", "opencv"]
+
+READERS: Dict[Reader, Callable[[str | Path], Iterator[np.ndarray]]] = {
     "ffmpeg": read_video_ffmpeg,
     "opencv": read_video_opencv,
 }
 
-WRITERS: Dict[str, Callable[[Iterator[np.ndarray], str | Path], None]] = {
+WRITERS: Dict[Writer, Callable[[Iterator[np.ndarray], str | Path], None]] = {
     "ffmpeg": write_video_ffmpeg,
     "matplotlib": write_video_matplotlib,
     "opencv": write_video_opencv,
