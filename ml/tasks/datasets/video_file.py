@@ -8,11 +8,11 @@ import torch
 from torch import Tensor
 from torch.utils.data.dataset import IterableDataset
 
-from ml.utils.video import READERS, VideoProps
+from ml.utils.video import READERS, Reader, VideoProps
 
 
 class VideoFileDataset(IterableDataset[Tensor]):
-    def __init__(self, file_path: str | Path, reader: str = "ffmpeg") -> None:
+    def __init__(self, file_path: str | Path, reader: Reader = "ffmpeg") -> None:
         """Defines a dataset which iterates through frames in a video file.
 
         Args:
