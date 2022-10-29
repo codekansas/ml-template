@@ -221,7 +221,7 @@ class VanillaTrainer(
         """
 
         if is_master():
-            self.add_lock_file("running")
+            self.add_lock_file("running", exists_ok=True)
 
         # Sets up environment.
         if self.config.deterministic:
