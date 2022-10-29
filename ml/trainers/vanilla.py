@@ -210,11 +210,6 @@ class VanillaTrainer(
         task.to(device, dtype, non_blocking=True)
         return TaskModel(task=task, model=model)
 
-    def handle_signal(self, sig: signal.Signals) -> None:
-        logger.info("Handling signal %s", sig.name)
-        if is_master():
-            self.remove_lock_file("running", missing_ok=True)
-
     def train(self, model: BaseModel, task: BaseTask, optimizer: BaseOptimizer, lr_scheduler: BaseLRScheduler) -> None:
         """Runs the GPU-based training loop.
 
@@ -246,6 +241,25 @@ class VanillaTrainer(
         optim = optimizer.get(model)
         lr_sched = lr_scheduler.get(optim)
 
+        # Loads an existing checkpoint, if one exists.
+        if (ckpt_path := self.get_ckpt_path()).exists():
+            state = self.load_checkpoint(ckpt_path, task, model, optim, lr_sched)
+        else:
+            state = State.init_state()
+
+        def on_exit(signum: int, *_: Any) -> None:
+            logger.info("Handling interrupt %s", signal.Signals(signum).name)
+            self.save_checkpoint(state, task, model, optim, lr_sched)
+            if is_master():
+                self.remove_lock_file("running", missing_ok=True)
+
+        def on_finish_training() -> None:
+            self.save_checkpoint(state, task, model, optim, lr_sched)
+            raise TrainingFinishedException
+
+        # Handle user-defined interrupts.
+        signal.signal(signal.SIGUSR1, on_exit)
+
         # Gets the datasets.
         train_ds = task.get_dataset("train")
         valid_ds = task.get_dataset("valid")
@@ -258,25 +272,6 @@ class VanillaTrainer(
         train_pf = self.device.get_prefetcher(train_dl)
         valid_pf = self.device.get_prefetcher(valid_dl)
         valid_pf_infinite = InfinitePrefetcher(valid_pf)
-
-        # Loads an existing checkpoint, if one exists.
-        if (ckpt_path := self.get_ckpt_path()).exists():
-            state = self.load_checkpoint(ckpt_path, task, model, optim, lr_sched)
-        else:
-            state = State.init_state()
-
-        def on_exit(signum: int, *_: Any) -> None:
-            self.save_checkpoint(state, task, model, optim, lr_sched)
-            sig = signal.Signals(signum)
-            self.handle_signal(sig)
-
-        def on_finish_training() -> None:
-            self.save_checkpoint(state, task, model, optim, lr_sched)
-            raise TrainingFinishedException
-
-        # Handle interrupts.
-        signal.signal(signal.SIGUSR1, on_exit)
-        signal.signal(signal.SIGTERM, on_exit)
 
         try:
             with contextlib.ExitStack() as ctx:

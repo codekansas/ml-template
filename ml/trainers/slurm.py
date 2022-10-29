@@ -19,7 +19,6 @@ from __future__ import annotations
 import logging
 import os
 import re
-import signal
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -55,7 +54,7 @@ SBATCH_TEMPLATE = """
 #SBATCH --job-name={job_name}
 #SBATCH --partition={partition}
 #SBATCH --comment='{comment}'
-#SBATCH --signal=B:USR1@180
+#SBATCH --signal=USR1@60
 #SBATCH --nodes={num_nodes}
 #SBATCH --ntasks-per-node={tasks_per_node}
 #SBATCH --cpus-per-task={cpus_per_task}
@@ -79,8 +78,21 @@ echo "Job ID: ${{SLURM_JOBID}}"
 echo "***"
 echo ""
 
+trap_handler() {{
+    echo "Caught signal: " $1
+    rm -f {lock_file_path}
+    if [ "$1" = "TERM" ]; then
+        echo "Requeuing " $SLURM_JOB_ID
+        scontrol requeue $SLURM_JOB_ID
+    else
+        echo "Bypass $1"
+    fi
+}}
+
+trap 'trap_handler TERM' TERM
+
 # Runs the training command.
-srun python -m ml.trainers.slurm {config_path}
+srun python {stage_dir}/ml/trainers/slurm.py {config_path}
 
 echo ""
 """.strip()
@@ -105,16 +117,6 @@ class SlurmTrainer(VanillaTrainer[SlurmTrainerConfig]):
             task_model = nn.parallel.DistributedDataParallel(task_model)
         return task_model
 
-    def handle_signal(self, sig: signal.Signals) -> None:
-        if "SLURM_JOB_ID" in os.environ:
-            if sig == signal.SIGUSR1:
-                subprocess.check_call(["scontrol", "requeue", os.environ["SLURM_JOB_ID"]])
-            elif sig == signal.SIGTERM:
-                logger.info("Bypassing SIGTERM")
-            else:
-                logger.info("Unexpected signal %s", sig.name)
-        super().handle_signal(sig)
-
     def launch(self) -> None:
         # Gets some configuration options.
         gpus_per_node = self.config.gpus_per_node
@@ -137,10 +139,10 @@ class SlurmTrainer(VanillaTrainer[SlurmTrainerConfig]):
         sbatch_path = slurm_dir / "sbatch.sh"
 
         # Stages all files to a new directory.
-        out_dir = stage_environment()
+        stage_dir = stage_environment()
 
         # Gets the python path with the new output directory.
-        python_path_parts = [str(out_dir)] + os.environ.get("PYTHONPATH", "").split(":")
+        python_path_parts = [str(stage_dir)] + os.environ.get("PYTHONPATH", "").split(":")
         python_path = ":".join(p for p in python_path_parts if p)
 
         # Comment miscellaneous stuff here.
@@ -148,7 +150,7 @@ class SlurmTrainer(VanillaTrainer[SlurmTrainerConfig]):
         if self.config.comment is not None:
             comments += [self.config.comment]
         comments += [f"Log directory: {self.exp_dir}"]
-        comments += [f"Code location: {out_dir}"]
+        comments += [f"Code location: {stage_dir}"]
 
         # Saves the config that is used to launch the Slurm job.
         self.save_config()
@@ -170,6 +172,7 @@ class SlurmTrainer(VanillaTrainer[SlurmTrainerConfig]):
             master_port=self.config.master_port,
             config_path=self.exp_dir / "config.yaml",
             lock_file_path=self.exp_dir / ".lock_running",
+            stage_dir=stage_dir,
         )
 
         with open(sbatch_path, "w", encoding="utf-8") as f:
