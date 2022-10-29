@@ -24,12 +24,6 @@ VALID_CHANNEL_COUNTS = {1, 3}
 TARGET_FPS = 12
 
 
-def get_scalar(scalar: int | float | Tensor) -> int | float:
-    if isinstance(scalar, Tensor):
-        return scalar.detach().cpu().item()
-    return scalar
-
-
 @dataclass
 class BaseLoggerConfig(BaseConfig):
     write_every_n_seconds: int = conf_field(1, help="Only write a log line every N seconds")
@@ -431,6 +425,12 @@ def make_square_image_or_video(
     return new_image[..., a : new_image.shape[-2] - b, a : new_image.shape[-1] - b]
 
 
+def cast_fp32(value: Any) -> Any:
+    if isinstance(value, Tensor) and value.is_floating_point():
+        value = value.detach().float().cpu()
+    return value
+
+
 class MultiLogger:
     """Defines an intermediate container which holds values to log somewhere else."""
 
@@ -454,6 +454,7 @@ class MultiLogger:
         def scalar_future() -> Number:
             value_concrete = value() if callable(value) else value
             assert isinstance(value_concrete, (int, float, Tensor))
+            value_concrete = cast_fp32(value_concrete)
             return value_concrete
 
         self.scalars[namespace][key] = scalar_future
@@ -476,6 +477,7 @@ class MultiLogger:
         def image_future() -> Tensor:
             value_concrete = value() if callable(value) else value
             assert isinstance(value_concrete, Tensor)
+            value_concrete = cast_fp32(value_concrete)
             return standardize_image(value_concrete, log_key=f"{namespace}/{key}")
 
         self.images[namespace][key] = image_future
@@ -496,6 +498,7 @@ class MultiLogger:
             value_concrete = value() if callable(value) else value
             assert isinstance(value_concrete, Tensor)
             value_concrete = standardize_images(value_concrete, max_images=max_images, log_key=f"{namespace}/{key}")
+            value_concrete = cast_fp32(value_concrete)
             return make_square_image_or_video(value_concrete, sep=sep)
 
         self.images[namespace][key] = images_future
@@ -516,6 +519,7 @@ class MultiLogger:
             value_concrete = value() if callable(value) else value
             assert isinstance(value_concrete, Tensor)
             video = standardize_video(value_concrete, log_key=f"{namespace}/{key}")
+            value_concrete = cast_fp32(value_concrete)
             return normalize_fps(video, fps, length)
 
         self.videos[namespace][key] = video_future
@@ -539,6 +543,7 @@ class MultiLogger:
             assert isinstance(value_concrete, (Tensor, list))
             video = normalize_fps(value_concrete, fps, length, stack_dim=1)
             video = standardize_videos(video, max_videos=max_videos, log_key=f"{namespace}/{key}")
+            value_concrete = cast_fp32(value_concrete)
             return make_square_image_or_video(video, sep=sep)
 
         self.videos[namespace][key] = videos_future
@@ -550,6 +555,7 @@ class MultiLogger:
         def histogram_future() -> Tensor:
             value_concrete = value() if callable(value) else value
             assert isinstance(value_concrete, Tensor)
+            value_concrete = cast_fp32(value_concrete)
             return value_concrete
 
         self.histograms[namespace][key] = histogram_future
@@ -568,6 +574,7 @@ class MultiLogger:
         def point_cloud_future() -> Tensor:
             value_concrete = value() if callable(value) else value
             assert isinstance(value_concrete, Tensor)
+            value_concrete = cast_fp32(value_concrete)
             return standardize_point_cloud(value_concrete, max_points, log_key=f"{namespace}/{key}")
 
         self.point_clouds[namespace][key] = point_cloud_future

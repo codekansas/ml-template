@@ -68,7 +68,7 @@ class StdoutLogger(BaseLogger[StdoutLoggerConfig]):
             if isinstance(value, str):
                 return f'"{value}"'
             if isinstance(value, Tensor):
-                value = value.detach().cpu().item()
+                value = value.detach().float().cpu().item()
             if isinstance(value, (int, float)):
                 return self.format_number(value)
             raise TypeError(f"Unexpected log type: {type(value)}")
