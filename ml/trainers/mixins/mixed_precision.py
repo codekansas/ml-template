@@ -64,7 +64,7 @@ class MixedPrecisionTrainerMixin(BaseTrainer[ConfigT]):
 
     def log_mp_scale(self) -> None:
         if (scaler := self.grad_scaler) is not None:
-            if (scale := scaler._scale) is not None:
+            if (scale := getattr(scaler, "_scale", None)) is not None:
                 self.logger.log_scalar("fp16_scale", scale)
 
     def load_state_dict(self, ckpt: Dict[str, Any]) -> None:
