@@ -131,7 +131,7 @@ class UpperLeftCrop(nn.Module):
 
 
 class Rescale(nn.Module):
-    __constants__ = ["min_val", "scale"]
+    __constants__ = ["min_val", "scale", "do_checks"]
 
     def __init__(self, min_val: float, max_val: float, do_checks: bool = True) -> None:
         """Rescales an image from (0, 1) to some other scale.
