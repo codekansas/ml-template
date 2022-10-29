@@ -260,11 +260,15 @@ class VanillaTrainer(
         else:
             state = State.init_state()
 
-        def on_exit(*_: Any) -> None:
+        def on_exit(signum: int, *_: Any) -> None:
             if is_master():
                 self.remove_lock_file("running", missing_ok=True)
             self.save_checkpoint(state, task, model, optim, lr_sched)
-            logger.info("Exiting training job for %s", self.exp_dir / "config.yaml")
+
+            # Re-raise the same signal.
+            sig = signal.Signals(signum)
+            logger.info("Handling signal %s", sig.name)
+            signal.raise_signal(sig)
 
         def on_finish_training() -> None:
             self.save_checkpoint(state, task, model, optim, lr_sched)
@@ -343,6 +347,9 @@ class VanillaTrainer(
 
         except Exception:
             logger.exception("Caught exception during training loop")
+
+        finally:
+            logger.info("Exiting training job for %s", self.exp_dir / "config.yaml")
 
     def evaluate(self, model: BaseModel, task: BaseTask) -> None:
         """Runs the GPU-based evaluation loop.
