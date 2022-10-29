@@ -80,6 +80,7 @@ echo ""
 
 trap_handler() {{
     echo "Caught signal: " $1
+    rm -f {lock_file_path}
     if [ "$1" = "TERM" ]; then
         echo "Bypass SIGTERM"
     else
@@ -171,6 +172,7 @@ class SlurmTrainer(VanillaTrainer[SlurmTrainerConfig]):
             pythonpath=python_path,
             master_port=self.config.master_port,
             config_path=self.exp_dir / "config.yaml",
+            lock_file_path=self.exp_dir / ".lock_running",
         )
 
         with open(sbatch_path, "w", encoding="utf-8") as f:
