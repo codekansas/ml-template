@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass
-from typing import Any, Dict, TypeVar
+from typing import Any, ContextManager, Dict, TypeVar
 
 import torch
 from torch import Tensor
@@ -80,3 +81,9 @@ class MixedPrecisionTrainerMixin(BaseTrainer[ConfigT]):
             ckpt["grad_scaler"] = self.grad_scaler.state_dict()
 
         super().update_state_dict(ckpt)
+
+    def autocast_context(self) -> ContextManager:
+        device_type = self.device.get_device().type
+        if device_type not in ("cpu", "cuda"):
+            return contextlib.nullcontext()
+        return torch.autocast(device_type, enabled=self.config.fp16.enabled)

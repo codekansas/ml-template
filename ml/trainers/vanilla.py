@@ -125,7 +125,7 @@ class VanillaTrainer(
     ) -> Dict[str, Tensor]:
         with self.step_context("change_mode"):
             task_model, state.phase = set_phase(task_model, "train")
-        with self.step_context("forward"), torch.autocast(self.device_type, enabled=self.config.fp16.enabled):
+        with self.step_context("forward"), self.autocast_context():
             loss = task_model(batch, state)
         with self.step_context("get_single_loss"):
             single_loss, loss_names = task.get_single_loss(loss)
@@ -166,7 +166,7 @@ class VanillaTrainer(
         with torch.no_grad():
             with self.step_context("change_mode"):
                 task_model, state.phase = set_phase(task_model, "valid")
-            with self.step_context("forward"), torch.autocast(self.device_type, enabled=self.config.fp16.enabled):
+            with self.step_context("forward"), self.autocast_context():
                 loss = task_model(batch, state)
             with self.step_context("get_single_loss"):
                 single_loss, loss_names = task.get_single_loss(loss)
@@ -191,7 +191,7 @@ class VanillaTrainer(
         with torch.no_grad():
             with self.step_context("change_mode"):
                 task_model, state.phase = set_phase(task_model, "test")
-            with self.step_context("forward"), torch.autocast(self.device_type, enabled=self.config.fp16.enabled):
+            with self.step_context("forward"), self.autocast_context():
                 loss = task_model(batch, state)
             with self.step_context("get_single_loss"):
                 single_loss, loss_names = task.get_single_loss(loss)
