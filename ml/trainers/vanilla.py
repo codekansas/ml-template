@@ -210,6 +210,11 @@ class VanillaTrainer(
         task.to(device, dtype, non_blocking=True)
         return TaskModel(task=task, model=model)
 
+    def handle_signal(self, sig: signal.Signals) -> None:
+        logger.info("Handling signal %s", sig.name)
+        if is_master():
+            self.remove_lock_file("running", missing_ok=True)
+
     def train(self, model: BaseModel, task: BaseTask, optimizer: BaseOptimizer, lr_scheduler: BaseLRScheduler) -> None:
         """Runs the GPU-based training loop.
 
@@ -261,14 +266,9 @@ class VanillaTrainer(
             state = State.init_state()
 
         def on_exit(signum: int, *_: Any) -> None:
-            if is_master():
-                self.remove_lock_file("running", missing_ok=True)
             self.save_checkpoint(state, task, model, optim, lr_sched)
-
-            # Re-raise the same signal.
             sig = signal.Signals(signum)
-            logger.info("Handling signal %s", sig.name)
-            signal.raise_signal(sig)
+            self.handle_signal(sig)
 
         def on_finish_training() -> None:
             self.save_checkpoint(state, task, model, optim, lr_sched)

@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import signal
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -78,20 +79,6 @@ echo "Job ID: ${{SLURM_JOBID}}"
 echo "***"
 echo ""
 
-trap_handler() {{
-    echo "Caught signal: " $1
-    rm -f {lock_file_path}
-    if [ "$1" = "TERM" ]; then
-        echo "Bypass SIGTERM"
-    else
-        echo "Requeuing " $SLURM_JOB_ID
-        scontrol requeue $SLURM_JOB_ID
-    fi
-}}
-
-trap 'trap_handler USR1' USR1
-trap 'trap_handler TERM' TERM
-
 # Runs the training command.
 srun python -m ml.trainers.slurm {config_path}
 
@@ -117,6 +104,16 @@ class SlurmTrainer(VanillaTrainer[SlurmTrainerConfig]):
         if get_world_size() > 1:
             task_model = nn.parallel.DistributedDataParallel(task_model)
         return task_model
+
+    def handle_signal(self, sig: signal.Signals) -> None:
+        if "SLURM_JOB_ID" in os.environ:
+            if sig == signal.SIGUSR1:
+                subprocess.check_call(["scontrol", "requeue", os.environ["SLURM_JOB_ID"]])
+            elif sig == signal.SIGTERM:
+                logger.info("Bypassing SIGTERM")
+            else:
+                logger.info("Unexpected signal %s", sig.name)
+        super().handle_signal(sig)
 
     def launch(self) -> None:
         # Gets some configuration options.
