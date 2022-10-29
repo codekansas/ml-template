@@ -78,8 +78,9 @@ def random_square_crop(img: Image) -> Image:
 
 
 def random_square_crop_multi(imgs: List[Image]) -> List[Image]:
-    img_width, img_height = V.get_image_size(imgs[0])
-    assert all(V.get_image_size(i) == (img_width, img_height) for i in imgs[1:])
+    img_dims = V.get_image_size(imgs[0])
+    assert all(V.get_image_size(i) == img_dims for i in imgs[1:])
+    img_width, img_height = img_dims
     height = width = min(img_width, img_height)
     top, left = random.randint(0, img_height - height), random.randint(0, img_width - width)
     return [V.crop(i, top, left, height, width) for i in imgs]
