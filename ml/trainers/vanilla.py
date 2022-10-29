@@ -12,14 +12,13 @@ Summary table:
 | loss    | E(x, o)      |
 """
 
-import atexit
 import contextlib
 import functools
 import logging
 import signal
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Type, TypeVar
+from typing import Any, Dict, Type, TypeVar
 
 import torch
 from torch import Tensor, nn
@@ -261,7 +260,7 @@ class VanillaTrainer(
         else:
             state = State.init_state()
 
-        def on_exit() -> None:
+        def on_exit(*_: Any) -> None:
             if is_master():
                 self.remove_lock_file("running", missing_ok=True)
             self.save_checkpoint(state, task, model, optim, lr_sched)
