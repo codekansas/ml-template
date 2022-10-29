@@ -103,6 +103,10 @@ class VanillaTrainer(
         return AutoDevice.get_device_from_key(self.config.device)
 
     @functools.cached_property
+    def device_type(self) -> str:
+        return self.device.get_device().type
+
+    @functools.cached_property
     def weight_precision(self) -> torch.dtype:
         # Weights always have to be FP32 or FP64, because AMP doesn't like
         # gradients which are in FP16.
@@ -121,7 +125,7 @@ class VanillaTrainer(
     ) -> Dict[str, Tensor]:
         with self.step_context("change_mode"):
             task_model, state.phase = set_phase(task_model, "train")
-        with self.step_context("forward"), torch.cuda.amp.autocast():
+        with self.step_context("forward"), torch.autocast(self.device_type, enabled=self.config.fp16.enabled):
             loss = task_model(batch, state)
         with self.step_context("get_single_loss"):
             single_loss, loss_names = task.get_single_loss(loss)
@@ -162,7 +166,7 @@ class VanillaTrainer(
         with torch.no_grad():
             with self.step_context("change_mode"):
                 task_model, state.phase = set_phase(task_model, "valid")
-            with self.step_context("forward"), torch.cuda.amp.autocast():
+            with self.step_context("forward"), torch.autocast(self.device_type, enabled=self.config.fp16.enabled):
                 loss = task_model(batch, state)
             with self.step_context("get_single_loss"):
                 single_loss, loss_names = task.get_single_loss(loss)
@@ -187,7 +191,7 @@ class VanillaTrainer(
         with torch.no_grad():
             with self.step_context("change_mode"):
                 task_model, state.phase = set_phase(task_model, "test")
-            with self.step_context("forward"), torch.cuda.amp.autocast():
+            with self.step_context("forward"), torch.autocast(self.device_type, enabled=self.config.fp16.enabled):
                 loss = task_model(batch, state)
             with self.step_context("get_single_loss"):
                 single_loss, loss_names = task.get_single_loss(loss)
