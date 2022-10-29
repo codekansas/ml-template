@@ -16,6 +16,7 @@ import atexit
 import contextlib
 import functools
 import logging
+import signal
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Type, TypeVar
@@ -263,14 +264,16 @@ class VanillaTrainer(
         def on_exit() -> None:
             if is_master():
                 self.remove_lock_file("running", missing_ok=True)
+            self.save_checkpoint(state, task, model, optim, lr_sched)
             logger.info("Exiting training job for %s", self.exp_dir / "config.yaml")
 
-        def finish_training() -> None:
+        def on_finish_training() -> None:
             self.save_checkpoint(state, task, model, optim, lr_sched)
             raise TrainingFinishedException
 
-        # Always run at exit time.
-        atexit.register(on_exit)
+        # Handle interrupts.
+        signal.signal(signal.SIGUSR1, on_exit)
+        signal.signal(signal.SIGTERM, on_exit)
 
         try:
             with contextlib.ExitStack() as ctx:
@@ -297,7 +300,7 @@ class VanillaTrainer(
                         self.logger.log_scalar("dt/get_batch", train_pf.get_batch_time, namespace="timers")
 
                         if task.is_training_over(state):
-                            finish_training()
+                            on_finish_training()
 
                         with self.step_context("on_step_start"):
                             self.on_step_start(state, train_batch, task, model, optim, lr_sched)
