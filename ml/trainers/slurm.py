@@ -53,6 +53,7 @@ SBATCH_TEMPLATE = """
 #!/bin/bash
 #SBATCH --job-name={job_name}
 #SBATCH --partition={partition}
+#SBATCH --time={time_limit}
 #SBATCH --comment='{comment}'
 #SBATCH --signal=USR1@60
 #SBATCH --nodes={num_nodes}
@@ -101,6 +102,7 @@ echo ""
 @dataclass
 class SlurmTrainerConfig(VanillaTrainerConfig):
     partition: str = conf_field(II("oc.env:SLURM_PARTITION"), help="Which partition to launch")
+    time_limit: str = conf_field(II("oc.env:SLURM_TIME_LIMIT"), help="Time limit string (example: 3-00:00:00")")")
     num_nodes: int = conf_field(MISSING, help="Total number of nodes to use")
     gpus_per_node: int = conf_field(II("oc.env:SLURM_GPUS_PER_NODE"), help="Number of GPUs per node")
     cpus_per_gpu: int = conf_field(II("oc.env:SLURM_CPUS_PER_GPU"), help="Number of CPUs per task")
@@ -159,6 +161,7 @@ class SlurmTrainer(VanillaTrainer[SlurmTrainerConfig]):
         sbatch_file = SBATCH_TEMPLATE.format(
             job_name=self.config.exp_name,
             partition=self.config.partition,
+            time_limit=self.config.time_limit,
             comment="; ".join(comments),
             num_nodes=self.config.num_nodes,
             tasks_per_node=tasks_per_node,
