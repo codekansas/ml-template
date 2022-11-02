@@ -12,13 +12,16 @@ Summary table:
 | loss    | E(x, o)      |
 """
 
+from __future__ import annotations
+
 import contextlib
 import functools
 import logging
 import signal
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Type, TypeVar
+from types import FrameType
+from typing import Callable, Dict, Type, TypeVar
 
 import torch
 from torch import Tensor, nn
@@ -210,6 +213,24 @@ class VanillaTrainer(
         task.to(device, dtype, non_blocking=True)
         return TaskModel(task=task, model=model)
 
+    def on_exit(
+        self,
+        sig: signal.Signals,
+        state: State,
+        task: BaseTask,
+        model: BaseModel,
+        optim: Optimizer,
+        lr_scheduler: SchedulerAdapter,
+    ) -> None:
+        logger.info("Handling interrupt %s", sig.name)
+        self.save_checkpoint(state, task, model, optim, lr_scheduler)
+        logger.info("Removing lock file")
+        if is_master():
+            self.remove_lock_file("running", missing_ok=True)
+
+    def set_signal_handler(self, handler: Callable[[int, FrameType | None], None]) -> None:
+        pass
+
     def train(self, model: BaseModel, task: BaseTask, optimizer: BaseOptimizer, lr_scheduler: BaseLRScheduler) -> None:
         """Runs the GPU-based training loop.
 
@@ -247,11 +268,11 @@ class VanillaTrainer(
         else:
             state = State.init_state()
 
-        def on_exit(signum: int, *_: Any) -> None:
-            logger.info("Handling interrupt %s", signal.Signals(signum).name)
-            self.save_checkpoint(state, task, model, optim, lr_sched)
-            if is_master():
-                self.remove_lock_file("running", missing_ok=True)
+        def on_exit(signum: int, _: FrameType | None) -> None:
+            sig = signal.Signals(signum)
+            self.on_exit(sig, state, task, model, optim, lr_sched)
+
+        self.set_signal_handler(on_exit)
 
         def on_finish_training() -> None:
             self.save_checkpoint(state, task, model, optim, lr_sched)
@@ -344,6 +365,8 @@ class VanillaTrainer(
             logger.exception("Caught exception during training loop")
 
         finally:
+            if is_master():
+                self.remove_lock_file("running", missing_ok=True)
             logger.info("Exiting training job for %s", self.exp_dir / "config.yaml")
 
     def evaluate(self, model: BaseModel, task: BaseTask) -> None:

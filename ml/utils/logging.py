@@ -9,7 +9,7 @@ import tqdm
 from torch import Tensor
 
 from ml.core.env import is_debugging
-from ml.utils.colors import Color, colorize
+from ml.utils.colors import Color, colorize, get_colorize_parts
 
 # Logging level to show on all ranks.
 INFOALL = logging.INFO + 1
@@ -51,7 +51,7 @@ class ColoredFormatter(logging.Formatter):
         "WARNING": "yellow",
         "INFOALL": "magenta",
         "INFO": "cyan",
-        "DEBUG": "white",
+        "DEBUG": "grey",
         "CRITICAL": "yellow",
         "FATAL": "red",
         "ERROR": "red",
@@ -65,14 +65,15 @@ class ColoredFormatter(logging.Formatter):
         world_size: int | None = None,
         use_color: bool = True,
     ):
-        message = "{levelname:^19s} [{name}] {message}"
+        asc_start, asc_end = get_colorize_parts("grey")
+        message = "{levelname:^19s} " + asc_start + "{asctime}" + asc_end + " [{name}] {message}"
         if prefix is not None:
             message = colorize(prefix, "white") + " " + message
         if rank is not None or world_size is not None:
             assert rank is not None and world_size is not None
             digits = int(math.log10(world_size) + 1)
             message = "[" + colorize(f"{rank:>{digits}}", "blue") + "] " + message
-        super().__init__(message, style="{")
+        super().__init__(message, style="{", datefmt="%Y-%m-%d %H:%M:%S")
 
         self.rank = rank
         self.use_color = use_color

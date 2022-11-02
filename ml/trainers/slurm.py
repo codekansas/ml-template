@@ -18,18 +18,24 @@ from __future__ import annotations
 
 import logging
 import os
+import random
 import re
+import signal
 import subprocess
 import sys
 from dataclasses import dataclass
-from typing import List, Optional
+from types import FrameType
+from typing import Callable, List, Optional
 
 from omegaconf import II, MISSING, OmegaConf
 from torch import nn
+from torch.optim import Optimizer
 
 from ml.core.config import conf_field
 from ml.core.env import get_distributed_backend
 from ml.core.registry import Objects, register_trainer, stage_environment
+from ml.core.state import State
+from ml.lr_schedulers.base import SchedulerAdapter
 from ml.models.base import BaseModel
 from ml.scripts.train import main as train_main
 from ml.tasks.base import BaseTask
@@ -53,8 +59,10 @@ SBATCH_TEMPLATE = """
 #!/bin/bash
 #SBATCH --job-name={job_name}
 #SBATCH --partition={partition}
+#SBATCH --requeue
+#SBATCH --signal=USR1@90
+#SBATCH --time={time_limit}
 #SBATCH --comment='{comment}'
-#SBATCH --signal=USR1@60
 #SBATCH --nodes={num_nodes}
 #SBATCH --ntasks-per-node={tasks_per_node}
 #SBATCH --cpus-per-task={cpus_per_task}
@@ -78,21 +86,14 @@ echo "Job ID: ${{SLURM_JOBID}}"
 echo "***"
 echo ""
 
-trap_handler() {{
-    echo "Caught signal: " $1
-    rm -f {lock_file_path}
-    if [ "$1" = "TERM" ]; then
-        echo "Requeuing " $SLURM_JOB_ID
-        scontrol requeue $SLURM_JOB_ID
-    else
-        echo "Bypass $1"
-    fi
-}}
-
-trap 'trap_handler TERM' TERM
-
 # Runs the training command.
-srun python {stage_dir}/ml/trainers/slurm.py {config_path}
+srun \\
+    --nodes={num_nodes} \\
+    --ntasks-per-node={tasks_per_node} \\
+    --cpus-per-task={cpus_per_task} \\
+    --gres={gres} \\
+    --gpu-bind={gpu_bind} \\
+    python {stage_dir}/ml/trainers/slurm.py {config_path}
 
 echo ""
 """.strip()
@@ -101,12 +102,18 @@ echo ""
 @dataclass
 class SlurmTrainerConfig(VanillaTrainerConfig):
     partition: str = conf_field(II("oc.env:SLURM_PARTITION"), help="Which partition to launch")
+    time_limit: str = conf_field(II("oc.env:SLURM_TIME_LIMIT"), help="Time limit string (example: 3-00:00:00")
     num_nodes: int = conf_field(MISSING, help="Total number of nodes to use")
     gpus_per_node: int = conf_field(II("oc.env:SLURM_GPUS_PER_NODE"), help="Number of GPUs per node")
     cpus_per_gpu: int = conf_field(II("oc.env:SLURM_CPUS_PER_GPU"), help="Number of CPUs per task")
     num_jobs: int = conf_field(1, help="Number of redundant jobs to launch")
     comment: Optional[str] = conf_field(None, help="An optional comment to add to the experiment")
-    master_port: int = conf_field(29500, help="The master port to use")
+    master_port: int = conf_field(random.randint(10_000, 65_535), help="The master port to use")
+
+
+def ignore_signal(signum: int, _: FrameType | None) -> None:
+    sig = signal.Signals(signum)
+    logger.info("Ignoring signal %s", sig.name)
 
 
 @register_trainer("slurm", SlurmTrainerConfig)
@@ -116,6 +123,29 @@ class SlurmTrainer(VanillaTrainer[SlurmTrainerConfig]):
         if get_world_size() > 1:
             task_model = nn.parallel.DistributedDataParallel(task_model)
         return task_model
+
+    def on_exit(
+        self,
+        sig: signal.Signals,
+        state: State,
+        task: BaseTask,
+        model: BaseModel,
+        optim: Optimizer,
+        lr_scheduler: SchedulerAdapter,
+    ) -> None:
+        super().on_exit(sig, state, task, model, optim, lr_scheduler)
+
+        if is_master():
+            if "SLURM_JOB_ID" in os.environ:
+                cmd = ["scontrol", "requeue", os.environ["SLURM_JOB_ID"]]
+                logger.info("Running %s", " ".join(cmd))
+                subprocess.check_call(cmd)
+            else:
+                logger.info("SLURM_JOB_ID environment variable not found; not requeueing")
+
+    def set_signal_handler(self, handler: Callable[[int, FrameType | None], None]) -> None:
+        signal.signal(signal.SIGUSR1, handler)
+        signal.signal(signal.SIGTERM, ignore_signal)
 
     def launch(self) -> None:
         # Gets some configuration options.
@@ -133,10 +163,9 @@ class SlurmTrainer(VanillaTrainer[SlurmTrainerConfig]):
             sbatch_lines += [f"--mail-user={os.environ['EMAIL']}", "--mail-type=ALL"]
 
         # Writes all Slurm stuff (including logs) to this folder.
-        slurm_dir = self.exp_dir / "slurm"
-        slurm_log_dir = slurm_dir / "logs"
+        slurm_log_dir = self.exp_dir / "logs"
         slurm_log_dir.mkdir(exist_ok=True, parents=True)
-        sbatch_path = slurm_dir / "sbatch.sh"
+        sbatch_path = self.exp_dir / "sbatch.sh"
 
         # Stages all files to a new directory.
         stage_dir = stage_environment()
@@ -159,14 +188,15 @@ class SlurmTrainer(VanillaTrainer[SlurmTrainerConfig]):
         sbatch_file = SBATCH_TEMPLATE.format(
             job_name=self.config.exp_name,
             partition=self.config.partition,
+            time_limit=self.config.time_limit,
             comment="; ".join(comments),
             num_nodes=self.config.num_nodes,
             tasks_per_node=tasks_per_node,
             cpus_per_task=cpus_per_task,
             gres=gres,
             gpu_bind=gpu_bind,
-            output_path=slurm_log_dir / "stdout.txt",
-            error_path=slurm_log_dir / "stderr.%j.txt",
+            output_path=slurm_log_dir / "slurm_out.txt",
+            error_path=slurm_log_dir / "slurm_err.%j.txt",
             extra_sbatch_lines="\n".join(f"#SBATCH {line}" for line in sbatch_lines),
             pythonpath=python_path,
             master_port=self.config.master_port,

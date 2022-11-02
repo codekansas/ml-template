@@ -5,6 +5,7 @@ import datetime
 import functools
 import logging
 import os
+import re
 import subprocess
 import time
 from collections import defaultdict
@@ -34,12 +35,6 @@ def make_bold(strs: List[str]) -> str:
     strs = [s.strip() for s in strs]
     max_len = max(len(s) for s in strs)
     return "\n".join(["-" * max_len] + strs + ["-" * max_len])
-
-
-def get_tb_port() -> int:
-    if "TENSORBOARD_PORT" in os.environ:
-        return int(os.environ["TENSORBOARD_PORT"])
-    return get_unused_port()
 
 
 @dataclass
@@ -75,17 +70,28 @@ class TensorboardLogger(BaseLogger[TensorboardLoggerConfig]):
 
         window_title = f"{get_exp_name()} - TensorBoard"
 
+        if "TENSORBOARD_PORT" in os.environ:
+            port, use_localhost = int(os.environ["TENSORBOARD_PORT"]), True
+        else:
+            port, use_localhost = get_unused_port(), False
+
+        def make_localhost(s: str) -> str:
+            if use_localhost:
+                s = re.sub(rf"://(.+?):{port}", f"://localhost:{port}", s)
+            return s
+
         if is_master():
-            if is_distributed() or not self.config.start_in_subprocess:
+            if not self.config.start_in_subprocess or is_distributed():
                 tensorboard_command_strs = [
                     "tensorboard serve \\",
                     f"  --logdir {self.tensorboard_log_directory} \\",
                     "  --bind_all \\",
                     "  --path_prefix '/tensorboard' \\",
                     f"  --window_title '{window_title}' \\",
-                    f"  --port {get_tb_port()}",
+                    f"  --port {port} \\",
+                    "  --reload_interval 15",
                 ]
-                logger.info("Tensorboard command:\n%s", make_bold(tensorboard_command_strs))
+                logger.info("Tensorboard command:\n%s", make_localhost(make_bold(tensorboard_command_strs)))
 
             else:
                 command: List[str] = [
@@ -99,7 +105,7 @@ class TensorboardLogger(BaseLogger[TensorboardLoggerConfig]):
                     "--window_title",
                     window_title,
                     "--port",
-                    str(get_tb_port()),
+                    str(port),
                     "--reload_interval",
                     "15",
                 ]
@@ -116,8 +122,8 @@ class TensorboardLogger(BaseLogger[TensorboardLoggerConfig]):
                 for line in proc.stdout:
                     line_str = line.decode("utf-8")
                     if line_str.startswith("TensorBoard"):
-                        self.line_str = line_str
-                        logger.info("Running TensorBoard process:\n%s", make_bold([line_str]))
+                        self.line_str = make_localhost(line_str)
+                        logger.info("Running TensorBoard process:\n%s", make_bold([self.line_str]))
                         break
 
                 # Close the process when the program terminates.
