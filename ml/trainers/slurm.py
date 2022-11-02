@@ -102,7 +102,7 @@ echo ""
 @dataclass
 class SlurmTrainerConfig(VanillaTrainerConfig):
     partition: str = conf_field(II("oc.env:SLURM_PARTITION"), help="Which partition to launch")
-    time_limit: str = conf_field(II("oc.env:SLURM_TIME_LIMIT"), help="Time limit string (example: 3-00:00:00")
+    time_limit: str = conf_field(II("oc.env:SLURM_TIME_LIMIT"), help="Time limit string (example: 3-00:00:00)")
     num_nodes: int = conf_field(MISSING, help="Total number of nodes to use")
     gpus_per_node: int = conf_field(II("oc.env:SLURM_GPUS_PER_NODE"), help="Number of GPUs per node")
     cpus_per_gpu: int = conf_field(II("oc.env:SLURM_CPUS_PER_GPU"), help="Number of CPUs per task")
