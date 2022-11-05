@@ -61,16 +61,6 @@ CONDA_FORMAT_DEPS =
 CONDA_FORMAT_DEPS += clang-format=14.0.4
 CONDA_FORMAT_DEPS += cmake-format=0.6.11
 
-# Pip dependencies.
-PIP_DEPS =
-PIP_DEPS += ffmpeg-python
-PIP_DEPS += matplotlib
-PIP_DEPS += omegaconf
-PIP_DEPS += opencv-python
-PIP_DEPS += pandas
-PIP_DEPS += tensorboard
-PIP_DEPS += tqdm
-
 # Pip formatting dependencies.
 PIP_FORMAT_DEPS =
 PIP_FORMAT_DEPS += black
@@ -97,9 +87,8 @@ else
 $(error "Unsupported backend: $(BACKEND)")
 endif
 
-PIP_DEPS += --find-links https://download.pytorch.org/whl/torch_stable.html
-PIP_DEPS += torch==$(TORCH_VERSION)
-PIP_DEPS += torchvision==$(TORCHVISION_VERSION)
+PIP_ARGS =
+PIP_ARGS += --find-links https://download.pytorch.org/whl/torch_stable.html
 
 # ------------------------ #
 #        Initialize        #
@@ -131,11 +120,10 @@ endif
 
 install-deps: initialize
 	@mamba install $(CONDA_CHANNELS) $(CONDA_DEPS)
-	@pip install $(PIP_DEPS)
 .PHONY: install-dependencies
 
 install: initialize
-	@TORCH_VERSION=$(TORCH_VERSION) pip install --find-links https://download.pytorch.org/whl/torch_stable.html -e .
+	@TORCH_VERSION=$(TORCH_VERSION) TORCHVISION_VERSION=$(TORCHVISION_VERSION) pip install $(PIP_ARGS) -e .
 .PHONY: install
 
 clean:

@@ -159,6 +159,16 @@ def torch_version() -> str:
         return os.environ["TORCH_VERSION"]
 
 
+@functools.lru_cache
+def torchvision_version() -> str:
+    try:
+        import torchvision
+
+        return torchvision.__version__
+    except ModuleNotFoundError:
+        return os.environ["TORCHVISION_VERSION"]
+
+
 def torch_version_str() -> str:
     return re.sub(r"[\.\-\+]", "", torch_version())
 
@@ -176,9 +186,20 @@ setup(
     ],
     python_requires=">=3.8",
     setup_requires=[
-        f"torch=={torch_version()}",
-        "pybind11",
         "mypy",  # For Stubgen
+        "pybind11",
+        f"torch=={torch_version()}",
+    ],
+    install_requires=[
+        "ffmpeg-python",
+        "matplotlib",
+        "omegaconf",
+        "opencv-python",
+        "pandas",
+        "tensorboard",
+        "tqdm",
+        f"torch=={torch_version()}",
+        f"torchvision=={torchvision_version()}",
     ],
     ext_modules=[CMakeExtension("ml/cpp")],
     cmdclass={"build_ext": CMakeBuild},
