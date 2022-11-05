@@ -15,8 +15,12 @@ on:
 
 jobs:
   run-tests:
-    runs-on: ubuntu-latest
-
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: ["ubuntu-latest"]
+        python-version: ["3.8"]
     steps:
       - name: Fail for all draft PRs
         if: github.event.pull_request.draft
@@ -24,26 +28,36 @@ jobs:
           exit 1
       - name: Check out environment
         uses: actions/checkout@v2
-      - name: Set up Python 3.8.13
+      - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8.13
-      - name: Checking cache
+          python-version: ${{ matrix.python-version }}
+      - name: Cache conda
         uses: actions/cache@v2
-        id: cache
+        env:
+          CACHE_NUMBER: 0
         with:
-          path: ${{ env.pythonLocation }}
-          key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}-${{ hashFiles('requirements/*.txt') }}
-      - name: Installing dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          make install-dependencies
+          path: ~/conda_pkgs_dir
+          key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}-${{ hashFiles('Makefile') }}
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          mamba-version: "*"
+          channels: conda-forge
+          channel-priority: true
+          auto-activate-base: true
+          activate-environment: ml-${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
+          use-only-tar-bz2: true
+          use-mamba: true
       - name: Install
         run: |
+          make install-deps
+          make install-format-deps
           make install
-      - name: Lint
+      - name: Static checks
         run: |
-          make lint
-      - name: Testing
+          make static-checks
+      - name: Unit tests
         run: |
           make test

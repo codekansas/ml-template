@@ -182,19 +182,6 @@ setup(
     ],
     ext_modules=[CMakeExtension("ml/cpp")],
     cmdclass={"build_ext": CMakeBuild},
-    extras_require={
-        "dev": {
-            "black",
-            "darglint",
-            "flake8",
-            "mypy-extensions",
-            "mypy",
-            "pylint",
-            "pytest",
-            "types-setuptools",
-            "typing_extensions",
-        },
-    },
     exclude_package_data={
         "ml": [
             "cpp/**/*.cpp",
