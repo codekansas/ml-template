@@ -14,7 +14,7 @@ on:
       - ready_for_review
 
 jobs:
-  run-tests:
+  run-all-tests:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
