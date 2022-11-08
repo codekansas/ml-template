@@ -140,7 +140,7 @@ class ErrorHandlingDataset(Dataset[Batch]):
 
     def __len__(self) -> int:
         if hasattr(self.dataset, "__len__"):
-            return self.dataset.__len__()  # type: ignore
+            return self.dataset.__len__()
         raise NotImplementedError("Base dataset doesn't implemenet `__len__`")
 
 

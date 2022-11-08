@@ -73,8 +73,12 @@ class LastBatchNorm(nn.Module):
         self.affine = affine
         self.eps = eps
 
-        mean_tensor = torch.zeros(channels, device=device, dtype=dtype)
-        var_tensor = torch.ones(channels, device=device, dtype=dtype)
+        if dtype is None:
+            mean_tensor = torch.zeros(channels, device=device)
+            var_tensor = torch.ones(channels, device=device)
+        else:
+            mean_tensor = torch.zeros(channels, device=device, dtype=dtype)
+            var_tensor = torch.ones(channels, device=device, dtype=dtype)
         self.register_buffer("mean", mean_tensor)
         self.register_buffer("var", var_tensor)
 
@@ -117,8 +121,12 @@ class ConvLayerNorm(nn.Module):
         self.elementwise_affine = elementwise_affine
 
         if self.elementwise_affine:
-            self.weight = nn.Parameter(torch.empty(self.channels, device=device, dtype=dtype))
-            self.bias = nn.Parameter(torch.empty(self.channels, device=device, dtype=dtype))
+            if dtype is None:
+                self.weight = nn.Parameter(torch.empty(self.channels, device=device))
+                self.bias = nn.Parameter(torch.empty(self.channels, device=device))
+            else:
+                self.weight = nn.Parameter(torch.empty(self.channels, device=device, dtype=dtype))
+                self.bias = nn.Parameter(torch.empty(self.channels, device=device, dtype=dtype))
         else:
             self.register_parameter("weight", None)
             self.register_parameter("bias", None)

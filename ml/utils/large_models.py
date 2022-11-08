@@ -55,6 +55,8 @@ def meta_to_empty_func(device: torch.device, dtype: Optional[torch.dtype]) -> Ca
     def _func(t: Tensor) -> Tensor:
         if not t.is_meta:
             return t
-        return torch.empty(t.shape, device=device, dtype=dtype if t.is_floating_point() else None)
+        if t.is_floating_point() and dtype is not None:
+            return torch.empty(t.shape, device=device, dtype=dtype)
+        return torch.empty(t.shape, device=device)
 
     return _func

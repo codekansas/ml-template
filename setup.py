@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # pylint: disable=import-outside-toplevel
+# mypy: ignore-errors
 
 import functools
 import multiprocessing
