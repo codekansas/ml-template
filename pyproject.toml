@@ -91,17 +91,17 @@ disable_error_code = ["attr-defined"]
 [[tool.mypy.overrides]]
 
 module = [
+    "_pytest.*",
     "cv2.*",
+    "faiss.*",
     "ffmpeg.*",
+    "liblzfse.*",
     "matplotlib.*",
-    "numpy.*",
-    "omegaconf.*",
+    "open3d.*",
     "pandas.*",
     "PIL.*",
-    "pybind11.*",
     "pytest.*",
-    "setuptools.*",
-    "torch.*",
+    "quaternion.*",
     "torchvision.*",
     "tqdm.*",
 ]
