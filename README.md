@@ -15,10 +15,10 @@ conda create --name ml python=3.8
 Next, install the project dependencies:
 
 ```bash
-make install-dependencies
+make install-deps
 ```
 
-Finally, install the project (in editable mode):
+Finally, install the project:
 
 ```bash
 make install
