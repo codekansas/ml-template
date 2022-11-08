@@ -152,7 +152,7 @@ format: initialize
 static-checks: initialize
 	black --diff --check $(py-files)
 	isort --check-only $(py-files)
-	mypy $(py-files)
+	mypy --install-types --non-interactive $(py-files)
 	flake8 --count --show-source --statistics $(py-files)
 	pylint $(py-files)
 .PHONY: lint
