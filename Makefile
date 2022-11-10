@@ -102,14 +102,12 @@ initialize:
 ifeq (, $(shell which mamba))
 ifeq (, $(shell which conda))
 	$(error Conda is not installed)
-else
-ifeq (base, $(CONDA_DEFAULT_ENV))
-	$(error Don't install this package into the base environment. Run 'conda create --name home-robot python=3.8' then 'conda activate home-robot`)
 else ifeq (, $(CONDA_DEFAULT_ENV))
-	$(error Conda is installed, but not initialized. Run 'conda init'`)
+	$(error Conda not installed or not initialized)
+else ifeq (base, $(CONDA_DEFAULT_ENV))
+	$(error Don't install this package into the base environment. Run 'conda create --name home-robot python=3.8' then 'conda activate home-robot`)
 else
 	conda install -c conda-forge mamba
-endif
 endif
 endif
 .PHONY: initialize
