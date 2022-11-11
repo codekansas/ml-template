@@ -1,6 +1,6 @@
 import logging
 import random
-from typing import Collection, Dict, Iterator, List, Optional, Tuple, TypeVar
+from typing import Collection, Dict, Generic, Iterator, List, Optional, Tuple, TypeVar
 
 from torch.utils.data.dataloader import get_worker_info
 from torch.utils.data.dataset import IterableDataset
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 Batch = TypeVar("Batch")
 
 
-class StreamingDataset(IterableDataset[Tuple[int, Batch]]):
+class StreamingDataset(IterableDataset[Tuple[int, Batch]], Generic[Batch]):
     def __init__(self, datasets: Collection[IterableDataset[Batch]], max_simultaneous: int) -> None:
         """Defines a dataset which combines many streaming datasets.
 
