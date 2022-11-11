@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterator, Literal, Optional
+from typing import AsyncGenerator, Callable, Dict, Iterator, Literal, Optional, Tuple
 
 import cv2
 import ffmpeg
@@ -88,6 +90,60 @@ def read_video_ffmpeg(
 
     stream.stdout.close()
     stream.wait()
+
+
+async def read_video_with_timestamps_ffmpeg(
+    in_file: str | Path,
+    output_fmt: str = "rgb24",
+    channels: int = 3,
+) -> AsyncGenerator[Tuple[np.ndarray, float], None]:
+    """Like `read_video_ffmpeg` but also returns timestamps.
+    Args:
+        in_file: The input video to read
+        output_fmt: The output image format
+        channels: Number of output channels for each video frame
+    Yields:
+        Frames from the video as numpy arrays with shape (H, W, C), along with
+        the frame timestamps
+    """
+
+    props = VideoProps.from_file_ffmpeg(in_file)
+
+    stream = ffmpeg.input(str(in_file))
+    stream = ffmpeg.output(stream, "pipe:", format="rawvideo", pix_fmt=output_fmt, r=props.fps, vf="showinfo")
+    stream = ffmpeg.run_async(stream, pipe_stdout=True, pipe_stderr=True)
+
+    async def gen_frames() -> AsyncGenerator[np.ndarray, None]:
+        while True:
+            in_bytes = stream.stdout.read(props.frame_width * props.frame_height * channels)
+            if not in_bytes:
+                raise StopAsyncIteration
+            frame = np.frombuffer(in_bytes, np.uint8).reshape((props.frame_height, props.frame_width, channels))
+            yield frame
+
+    async def gen_timestamps() -> AsyncGenerator[float, None]:
+        exp = re.compile(rb"n:\s*(\d+)\s*pts:\s*(\d+)\s*pts_time:\s*([\d\.]+)")
+        while True:
+            in_line = stream.stderr.readline()
+            if not in_line:
+                raise StopAsyncIteration
+            exp_match = exp.search(in_line)
+            if exp_match is None:
+                continue
+            _, _, pts_time = exp_match.groups()
+            yield float(pts_time.decode("utf-8"))
+
+    frame_iter, ts_iter = gen_frames(), gen_timestamps()
+
+    try:
+        while True:
+            frame, ts = await asyncio.gather(frame_iter.__anext__(), ts_iter.__anext__())
+            yield frame, ts
+
+    except StopAsyncIteration:
+        stream.stdout.close()
+        stream.stderr.close()
+        stream.wait()
 
 
 def read_video_opencv(in_file: str | Path) -> Iterator[np.ndarray]:
