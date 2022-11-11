@@ -118,7 +118,7 @@ endif
 
 install-deps: initialize
 	@mamba install $(CONDA_CHANNELS) $(CONDA_DEPS)
-.PHONY: install-dependencies
+.PHONY: install-deps
 
 install: initialize
 	@TORCH_VERSION=$(TORCH_VERSION) TORCHVISION_VERSION=$(TORCHVISION_VERSION) pip install $(PIP_ARGS) -e .
