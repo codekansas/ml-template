@@ -4,6 +4,7 @@
 *.py[oc]
 __pycache__/
 *.egg-info
+.eggs/
 
 # Databases
 *.db

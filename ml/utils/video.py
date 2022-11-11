@@ -98,10 +98,12 @@ async def read_video_with_timestamps_ffmpeg(
     channels: int = 3,
 ) -> AsyncGenerator[Tuple[np.ndarray, float], None]:
     """Like `read_video_ffmpeg` but also returns timestamps.
+
     Args:
         in_file: The input video to read
         output_fmt: The output image format
         channels: Number of output channels for each video frame
+
     Yields:
         Frames from the video as numpy arrays with shape (H, W, C), along with
         the frame timestamps
