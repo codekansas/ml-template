@@ -175,12 +175,12 @@ class BaseDevice(ABC):
     @classmethod
     def sample_to_device(cls, sample: Any) -> Any:
         device = cls.get_device()
-        # dtype_fp = cls.get_floating_point_type()
+        dtype_fp = cls.get_floating_point_type()
         return Prefetcher.recursive_apply(
             sample,
             lambda t: t.to(
                 device,
-                # dtype_fp if t.is_floating_point() else t.dtype,
+                dtype_fp if t.is_floating_point() else t.dtype,
                 non_blocking=True,
             ),
         )

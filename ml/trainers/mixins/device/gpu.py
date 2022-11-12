@@ -36,5 +36,5 @@ class GPUDevice(BaseDevice):
             logger.info("Using FP32")
             return torch.float32
         else:
-            # return torch.float16
-            return torch.bfloat16
+            return torch.float16
+            # return torch.bfloat16
