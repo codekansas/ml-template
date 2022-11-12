@@ -5,7 +5,7 @@ import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncGenerator, Callable, Dict, Iterator, Literal, Optional, Tuple
+from typing import AsyncGenerator, Callable, Dict, Iterator, List, Literal, Optional, Tuple
 
 import cv2
 import ffmpeg
@@ -92,10 +92,13 @@ def read_video_ffmpeg(
     stream.wait()
 
 
+
+
 async def read_video_with_timestamps_ffmpeg(
     in_file: str | Path,
     output_fmt: str = "rgb24",
     channels: int = 3,
+    target_dims: Tuple[int | None, int | None] | None = None,
 ) -> AsyncGenerator[Tuple[np.ndarray, float], None]:
     """Like `read_video_ffmpeg` but also returns timestamps.
 
@@ -103,6 +106,8 @@ async def read_video_with_timestamps_ffmpeg(
         in_file: The input video to read
         output_fmt: The output image format
         channels: Number of output channels for each video frame
+        target_dims: (width, height) dimensions for images being loaded, with
+            None meaning that the aspect ratio should be kept the same
 
     Yields:
         Frames from the video as numpy arrays with shape (H, W, C), along with
@@ -111,22 +116,41 @@ async def read_video_with_timestamps_ffmpeg(
 
     props = VideoProps.from_file_ffmpeg(in_file)
 
+    def aspect_ratio(x: int, a: int, b: int) -> int:
+        return (x * a + b - 1) // b
+
+    vf: List[str] = []
+    if target_dims is not None:
+        width, height = target_dims
+        if width < 0 and height < 0:
+            raise ValueError("Either width or height should be greater than zero")
+        if width < 0:
+            width = aspect_ratio(height, props.frame_width, props.frame_height)
+        elif height < 0:
+            height = aspect_ratio(width, props.frame_height, props.frame_width)
+        vf.append(f"scale={width}:{height}")
+    else:
+        width, height = props.frame_width, props.frame_height
+    vf.append("showinfo")
+
     stream = ffmpeg.input(str(in_file))
-    stream = ffmpeg.output(stream, "pipe:", format="rawvideo", pix_fmt=output_fmt, r=props.fps, vf="showinfo")
+    stream = ffmpeg.output(stream, "pipe:", format="rawvideo", pix_fmt=output_fmt, r=props.fps, vf=",".join(vf))
     stream = ffmpeg.run_async(stream, pipe_stdout=True, pipe_stderr=True)
 
     async def gen_frames() -> AsyncGenerator[np.ndarray, None]:
         while True:
-            in_bytes = stream.stdout.read(props.frame_width * props.frame_height * channels)
+            in_bytes = stream.stdout.read(height * width * channels)
             if not in_bytes:
+                await asyncio.sleep(10)
                 raise StopAsyncIteration
-            frame = np.frombuffer(in_bytes, np.uint8).reshape((props.frame_height, props.frame_width, channels))
+            frame = np.frombuffer(in_bytes, np.uint8).reshape((height, width, channels))
             yield frame
 
     async def gen_timestamps() -> AsyncGenerator[float, None]:
         exp = re.compile(rb"n:\s*(\d+)\s*pts:\s*(\d+)\s*pts_time:\s*([\d\.]+)")
         while True:
             in_line = stream.stderr.readline()
+            print(in_line.decode("utf-8").strip())
             if not in_line:
                 raise StopAsyncIteration
             exp_match = exp.search(in_line)

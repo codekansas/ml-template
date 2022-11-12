@@ -3,6 +3,8 @@ model:
 
 task:
   name: cifar_demo
+  finished:
+    max_steps: 100_000
   dataloader:
     train:
       batch_size: 16
@@ -11,7 +13,7 @@ optimizer:
   name: adam
 
 lr_scheduler:
-  name: linear_100k
+  name: linear
 
 trainer:
   name: ddp
