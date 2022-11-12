@@ -5,7 +5,16 @@ import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncGenerator, Callable, Dict, Iterator, List, Literal, Optional, Tuple
+from typing import (
+    AsyncGenerator,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+)
 
 import cv2
 import ffmpeg
@@ -92,8 +101,6 @@ def read_video_ffmpeg(
     stream.wait()
 
 
-
-
 async def read_video_with_timestamps_ffmpeg(
     in_file: str | Path,
     output_fmt: str = "rgb24",
@@ -122,11 +129,11 @@ async def read_video_with_timestamps_ffmpeg(
     vf: List[str] = []
     if target_dims is not None:
         width, height = target_dims
-        if width is None and height is None:
-            raise ValueError("Either width or height should be greater than zero")
         if width is None:
+            assert height is not None, "If width is None, height must not be None"
             width = aspect_ratio(height, props.frame_width, props.frame_height)
-        elif height is None:
+        if height is None:
+            assert width is not None, "If height is None, width must not be None"
             height = aspect_ratio(width, props.frame_height, props.frame_width)
         vf.append(f"scale={width}:{height}")
     else:
