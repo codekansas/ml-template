@@ -197,7 +197,7 @@ class ErrorHandlingIterableDataset(IterableDataset[Batch]):
         raise RuntimeError(f"Reached max exceptions {self.config.maximum_exceptions}\n{self.exc_summary.summary()}")
 
 
-def get_error_handling_dataset(dataset: Dataset[Batch], config: ErrorHandlingConfig) -> ErrorHandlingDataset[Batch]:
+def get_error_handling_dataset(dataset: Dataset[Batch], config: ErrorHandlingConfig) -> Dataset[Batch]:
     """Returns a dataset which wraps the base dataset and handles errors.
 
     Args:
