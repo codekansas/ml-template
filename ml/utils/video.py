@@ -122,11 +122,11 @@ async def read_video_with_timestamps_ffmpeg(
     vf: List[str] = []
     if target_dims is not None:
         width, height = target_dims
-        if width < 0 and height < 0:
+        if width is None and height is None:
             raise ValueError("Either width or height should be greater than zero")
-        if width < 0:
+        if width is None:
             width = aspect_ratio(height, props.frame_width, props.frame_height)
-        elif height < 0:
+        elif height is None:
             height = aspect_ratio(width, props.frame_height, props.frame_width)
         vf.append(f"scale={width}:{height}")
     else:
