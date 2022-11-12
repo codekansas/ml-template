@@ -135,6 +135,7 @@ async def read_video_with_timestamps_ffmpeg(
         if height is None:
             assert width is not None, "If height is None, width must not be None"
             height = aspect_ratio(width, props.frame_height, props.frame_width)
+        assert width is not None and height is not None
         vf.append(f"scale={width}:{height}")
     else:
         width, height = props.frame_width, props.frame_height
