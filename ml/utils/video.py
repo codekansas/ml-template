@@ -150,7 +150,6 @@ async def read_video_with_timestamps_ffmpeg(
         exp = re.compile(rb"n:\s*(\d+)\s*pts:\s*(\d+)\s*pts_time:\s*([\d\.]+)")
         while True:
             in_line = stream.stderr.readline()
-            print(in_line.decode("utf-8").strip())
             if not in_line:
                 raise StopAsyncIteration
             exp_match = exp.search(in_line)
