@@ -141,9 +141,6 @@ async def read_video_with_timestamps_ffmpeg(
         width, height = props.frame_width, props.frame_height
     vf.append("showinfo")
 
-    assert isinstance(width, int) and width > 0
-    assert isinstance(height, int) and height > 0
-
     stream = ffmpeg.input(str(in_file))
     stream = ffmpeg.output(stream, "pipe:", format="rawvideo", pix_fmt=output_fmt, r=props.fps, vf=",".join(vf))
     stream = ffmpeg.run_async(stream, pipe_stdout=True, pipe_stderr=True)
