@@ -105,7 +105,7 @@ def make_size(img: Image, ref_size: Tuple[int, int]) -> Image:
     img = V.resize(img, [new_h, new_w], InterpolationMode.BILINEAR)
     new_img = img.new_zeros(img_c, ref_h, ref_w)
     start_h, start_w = (ref_h - new_h) // 2, (ref_w - new_w) // 2
-    new_img[:, start_h:start_h + new_h, start_w:start_w + new_w] = img
+    new_img[:, start_h : start_h + new_h, start_w : start_w + new_w] = img
     return new_img
 
 
