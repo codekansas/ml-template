@@ -86,6 +86,45 @@ def random_square_crop_multi(imgs: List[Image]) -> List[Image]:
     return [V.crop(i, top, left, height, width) for i in imgs]
 
 
+def make_size(img: Image, ref_size: Tuple[int, int]) -> Image:
+    """Converts an image to a specific size, zero-padding smaller dimension.
+
+    Args:
+        img: The input image
+        ref_size: The reference size, as (width, height)
+
+    Returns:
+        The resized image
+    """
+
+    img_c, (img_w, img_h), (ref_w, ref_h) = V.get_image_num_channels(img), V.get_image_size(img), ref_size
+    if img_h / img_w < ref_h / ref_w:  # Pad width
+        new_h, new_w = (img_h * ref_w) // img_w, ref_w
+    else:
+        new_h, new_w = ref_h, (img_w * ref_h) // img_h
+    img = V.resize(img, [new_h, new_w], InterpolationMode.BILINEAR)
+    new_img = img.new_zeros(img_c, ref_h, ref_w)
+    start_h, start_w = (ref_h - new_h) // 2, (ref_w - new_w) // 2
+    new_img[:, start_h:start_h + new_h, start_w:start_w + new_w] = img
+    return new_img
+
+
+def make_same_size(img: Image, ref_img: Image) -> Image:
+    """Converts an image to the same size as a reference image.
+
+    Args:
+        img: The input image
+        ref_img: The reference image
+
+    Returns:
+        The input image resized to the same size as the reference image,
+            zero-padding dimensions which are too small
+    """
+
+    ref_w, ref_h = V.get_image_size(ref_img)
+    return make_size(img, [ref_w, ref_h])
+
+
 class SquareResizeCrop(nn.Module):
     __constants__ = ["size", "interpolation"]
 
