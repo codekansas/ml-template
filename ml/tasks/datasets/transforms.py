@@ -122,7 +122,7 @@ def make_same_size(img: Image, ref_img: Image) -> Image:
     """
 
     ref_w, ref_h = V.get_image_size(ref_img)
-    return make_size(img, [ref_w, ref_h])
+    return make_size(img, (ref_w, ref_h))
 
 
 class SquareResizeCrop(nn.Module):
