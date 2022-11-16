@@ -12,9 +12,7 @@ from torchvision.models.resnet import (
     resnet152,
 )
 
-from ml.core.config import conf_field
-from ml.core.registry import register_model
-from ml.models.base import BaseModel, BaseModelConfig
+from ml import api
 
 MODELS: Dict[int, Callable[[bool], ResNet]] = {
     18: resnet18,
@@ -26,10 +24,10 @@ MODELS: Dict[int, Callable[[bool], ResNet]] = {
 
 
 @dataclass
-class ResNetModelConfig(BaseModelConfig):
-    size: int = conf_field(MISSING, help="ResNet size to use")
-    pretrained: bool = conf_field(True, help="Load pretrained model")
-    num_classes: Optional[int] = conf_field(None, help="If set, adds an output head with this many classes")
+class ResNetModelConfig(api.BaseModelConfig):
+    size: int = api.conf_field(MISSING, help="ResNet size to use")
+    pretrained: bool = api.conf_field(True, help="Load pretrained model")
+    num_classes: Optional[int] = api.conf_field(None, help="If set, adds an output head with this many classes")
 
     @classmethod
     def get_defaults(cls) -> Dict[str, "ResNetModelConfig"]:
@@ -42,8 +40,8 @@ class ResNetModelConfig(BaseModelConfig):
         }
 
 
-@register_model("resnet", ResNetModelConfig)
-class ResNetModel(BaseModel[ResNetModelConfig]):
+@api.register_model("resnet", ResNetModelConfig)
+class ResNetModel(api.BaseModel[ResNetModelConfig]):
     def __init__(self, config: ResNetModelConfig) -> None:
         super().__init__(config)
 
