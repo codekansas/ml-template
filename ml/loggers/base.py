@@ -392,6 +392,7 @@ def image_with_text(
     text: List[str],
     max_num_lines: int | None = None,
     line_spacing: int = 4,
+    centered: bool = True,
 ) -> Tensor:
     """Adds a text label to an image.
 
@@ -401,6 +402,7 @@ def image_with_text(
         max_num_lines: The number of lines of spacing to add to the bottom
             of the image
         line_spacing: The spacing between adjacent lines
+        centered: If set, center the text labels, otherwise align to the left
 
     Returns:
         The image with a text label
@@ -421,8 +423,13 @@ def image_with_text(
     padded_image.paste(pil_image, (0, 0))
     drawer = ImageDraw.Draw(padded_image)
     for i, text_line in enumerate(text):
-        text_line_height = height + line_spacing + i * (line_height + line_spacing)
-        drawer.text((line_spacing, text_line_height), text_line, font=font, fill=(0, 0, 0))
+        text_line_top = height + line_spacing + i * (line_height + line_spacing)
+        if centered:
+            _, _, line_width, _ = font.getbbox(text_line)
+            text_line_left = (width - line_width) / 2
+            drawer.text((text_line_left, text_line_top), text_line, font=font, fill=(0, 0, 0))
+        else:
+            drawer.text((line_spacing, text_line_top), text_line, font=font, fill=(0, 0, 0))
     return V.pil_to_tensor(padded_image)
 
 
@@ -651,6 +658,7 @@ class MultiLogger:
         namespace: str | None = None,
         max_line_length: int | None = None,
         keep_resolution: bool = False,
+        centered: bool = True,
     ) -> None:
         """Logs an image with a label.
 
@@ -664,6 +672,8 @@ class MultiLogger:
             keep_resolution: If set, keep the image resolution the same,
                 otherwise upscale or downscale the image to a standard
                 resolution
+            centered: If set, center the text labels, otherwise align to the
+                left
         """
 
         namespace = self.resolve_namespace(namespace)
@@ -676,7 +686,7 @@ class MultiLogger:
             image = standardize_image(image, log_key=f"{namespace}/{key}", keep_resolution=keep_resolution)
             text = standardize_text(text, max_line_length=max_line_length)
             image = cast_fp32(image)
-            return image_with_text(image, text)
+            return image_with_text(image, text, centered=centered)
 
         self.images[namespace][key] = labeled_image_future
 
@@ -734,6 +744,7 @@ class MultiLogger:
         keep_resolution: bool = False,
         max_images: int | None = None,
         sep: int = 0,
+        centered: bool = True,
     ) -> None:
         """Logs a set of images with labels.
 
@@ -752,6 +763,8 @@ class MultiLogger:
             max_images: The maximum number of images to show; extra images
                 are clipped
             sep: An optional separation amount between adjacent images
+            centered: If set, center the text labels, otherwise align to the
+                left
         """
 
         namespace = self.resolve_namespace(namespace)
@@ -772,7 +785,7 @@ class MultiLogger:
             max_num_lines = max(len(text_list) for text_list in text_lists)
             labeled_images = torch.stack(
                 [
-                    image_with_text(images[i], text_lists[i], max_num_lines=max_num_lines)
+                    image_with_text(images[i], text_lists[i], max_num_lines=max_num_lines, centered=centered)
                     for i in range(num_images)
                 ],
                 dim=0,
