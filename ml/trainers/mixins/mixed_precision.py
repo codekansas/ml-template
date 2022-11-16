@@ -84,6 +84,8 @@ class MixedPrecisionTrainerMixin(BaseTrainer[ConfigT]):
 
     def autocast_context(self) -> ContextManager:
         device_type = self.device.get_device().type
+        if device_type == "mps":
+            device_type = "cpu"
         if device_type not in ("cpu", "cuda"):
             return contextlib.nullcontext()
         return torch.autocast(device_type, enabled=self.config.fp16.enabled)

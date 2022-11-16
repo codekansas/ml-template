@@ -2,16 +2,32 @@ from __future__ import annotations
 
 import datetime
 import functools
+import math
+import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Tuple, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterator,
+    List,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+import torchvision.transforms.functional as V
+from PIL import Image, ImageDraw, ImageFont
 from torch import Tensor
+from torchvision.transforms import InterpolationMode
 
 from ml.core.config import BaseConfig, BaseObjectWithPointers, conf_field
 from ml.core.state import Phase, State
@@ -160,13 +176,67 @@ def _aminmax(t: Tensor) -> Tuple[Tensor, Tensor]:
     return minv, maxv
 
 
-def standardize_image(image: Tensor, *, log_key: str | None = None, normalize: bool = True) -> Tensor:
+def _chunk_lines(text: str, max_length: int) -> Iterator[str]:
+    for i in range(0, len(text), max_length):
+        yield text[i:i + max_length]
+
+
+def standardize_text(text: str, max_line_length: int | None = None) -> List[str]:
+    """Standardizes a text string to a list of lines.
+
+    Args:
+        text: The text to standardize
+        max_line_length: If set, truncate lines to this length
+
+    Returns:
+        The standardized text lines
+    """
+
+    lines = [re.sub(r"\s+", " ", line) for line in re.split(r"[\n\r]+", text.strip())]
+    if max_line_length is not None:
+        lines = [subline for line in lines for subline in _chunk_lines(line, max_line_length)]
+    return lines
+
+
+def make_human_viewable_resolution(
+    image: Tensor,
+    interpolation: InterpolationMode = InterpolationMode.BILINEAR,
+    trg_res: Tuple[int, int] = (250, 250),
+) -> Tensor:
+    """Resizes image to human-viewable resolution.
+
+    Args:
+        image: The image to resize, with shape (C, H, W)
+        interpolation: Interpolation mode to use for image resizing
+        trg_res: The target image resolution; the image will be reshaped to
+            have approximately the same area as an image with this resolution
+
+    Returns:
+        The resized image
+    """
+
+    height, width = V.get_image_size(image)
+    trg_height, trg_width = trg_res
+    factor = math.sqrt((trg_height * trg_width) / (height * width))
+    new_height, new_width = int(height * factor), int(width * factor)
+    return V.resize(image, [new_height, new_width], interpolation)
+
+
+def standardize_image(
+    image: Tensor,
+    *,
+    log_key: str | None = None,
+    normalize: bool = True,
+    keep_resolution: bool = False,
+) -> Tensor:
     """Converts an arbitrary image to shape (C, H, W).
 
     Args:
         image: The image tensor to log
         log_key: An optional logging key to use in the exception message
         normalize: Normalize images to (0, 1)
+        keep_resolution: If set, preserve original image resolution, otherwise
+            change image resolution to human-viewable
 
     Returns:
         The normalized image, with shape (C, H, W)
@@ -182,13 +252,20 @@ def standardize_image(image: Tensor, *, log_key: str | None = None, normalize: b
         image = torch.clamp((image.detach() - minv) / (maxv - minv), 0.0, 1.0)
 
     if image.ndim == 2:
-        return image.unsqueeze(0)
-    if image.ndim == 3:
+        image = image.unsqueeze(0)
+    elif image.ndim == 3:
         if image.shape[0] in VALID_CHANNEL_COUNTS:
-            return image
-        if image.shape[2] in VALID_CHANNEL_COUNTS:
-            return image.permute(2, 0, 1)
-    raise ValueError(f"Invalid image shape{'' if log_key is None else f' for {log_key}'}: {image.shape}")
+            pass
+        elif image.shape[2] in VALID_CHANNEL_COUNTS:
+            image = image.permute(2, 0, 1)
+        else:
+            raise ValueError(f"Invalid channel count{'' if log_key is None else f' for {log_key}'}: {image.shape}")
+    else:
+        raise ValueError(f"Invalid image shape{'' if log_key is None else f' for {log_key}'}: {image.shape}")
+
+    if not keep_resolution:
+        image = make_human_viewable_resolution(image)
+    return image
 
 
 def standardize_images(
@@ -197,6 +274,7 @@ def standardize_images(
     max_images: int | None = None,
     log_key: str | None = None,
     normalize: bool = True,
+    keep_resolution: bool = False,
 ) -> Tensor:
     """Converts an arbitrary set of images to shape (B, C, H, W).
 
@@ -205,6 +283,8 @@ def standardize_images(
         max_images: Maximum number of images to select
         log_key: An optional logging key to use in the exception message
         normalize: Normalize images to (0, 1)
+        keep_resolution: If set, preserve original image resolution, otherwise
+            change image resolution to human-viewable
 
     Returns:
         The normalized image, with shape (B, C, H, W)
@@ -220,14 +300,21 @@ def standardize_images(
         images = torch.clamp((images.detach() - minv) / (maxv - minv), 0.0, 1.0)
 
     if images.ndim == 3:
-        return images.unsqueeze(1)
-    if images.ndim == 4:
+        images = images.unsqueeze(1)
+    elif images.ndim == 4:
         if images.shape[1] in VALID_CHANNEL_COUNTS:
-            return images if max_images is None else images[:max_images]
-        if images.shape[3] in VALID_CHANNEL_COUNTS:
+            images = images if max_images is None else images[:max_images]
+        elif images.shape[3] in VALID_CHANNEL_COUNTS:
             images = images.permute(0, 3, 1, 2)
-            return images if max_images is None else images[:max_images]
-    raise ValueError(f"Invalid image shape{'' if log_key is None else f' for {log_key}'}: {images.shape}")
+            images = images if max_images is None else images[:max_images]
+        else:
+            raise ValueError(f"Invalid channel count{'' if log_key is None else f' for {log_key}'}: {images.shape}")
+    else:
+        raise ValueError(f"Invalid image shape{'' if log_key is None else f' for {log_key}'}: {images.shape}")
+
+    if not keep_resolution:
+        images = torch.stack([make_human_viewable_resolution(image) for image in images.unbind(0)], 0)
+    return images
 
 
 def standardize_video(video: Tensor, *, log_key: str | None = None, normalize: bool = True) -> Tensor:
@@ -298,6 +385,45 @@ def standardize_videos(
             videos = videos.permute(0, 3, 1, 2)
             return videos if max_videos is None else videos[:max_videos]
     raise ValueError(f"Invalid video shape{'' if log_key is None else f' for {log_key}'}: {videos.shape}")
+
+
+def image_with_text(
+    image: Tensor,
+    text: List[str],
+    max_num_lines: int | None = None,
+    line_spacing: int = 4,
+) -> Tensor:
+    """Adds a text label to an image.
+
+    Args:
+        image: The image to label, with shape (C, H, W)
+        text: The text label for the image
+        max_num_lines: The number of lines of spacing to add to the bottom
+            of the image
+        line_spacing: The spacing between adjacent lines
+
+    Returns:
+        The image with a text label
+    """
+
+    if not text:
+        return image
+    if max_num_lines is None:
+        max_num_lines = len(text)
+    else:
+        text = text[:max_num_lines]
+    pil_image = V.to_pil_image(image)
+    width, height = pil_image.size
+    font: ImageFont = ImageFont.load_default()
+    _, _, _, line_height = font.getbbox(text[0])
+    new_width, new_height = width, height + line_spacing + max_num_lines * (line_height + line_spacing)
+    padded_image = Image.new(pil_image.mode, (new_width, new_height), (255, 255, 255))
+    padded_image.paste(pil_image, (0, 0))
+    drawer = ImageDraw.Draw(padded_image)
+    for i, text_line in enumerate(text):
+        text_line_height = height + line_spacing + i * (line_height + line_spacing)
+        drawer.text((line_spacing, text_line_height), text_line, font=font, fill=(0, 0, 0))
+    return V.pil_to_tensor(padded_image)
 
 
 def normalize_fps(
@@ -448,6 +574,14 @@ class MultiLogger:
         return self.default_namespace if namespace is None else namespace
 
     def log_scalar(self, key: str, value: Callable[[], Number] | Number, *, namespace: str | None = None) -> None:
+        """Logs a scalar value.
+
+        Args:
+            key: The key being logged
+            value: The scalar value being logged
+            namespace: An optional logging namespace
+        """
+
         namespace = self.resolve_namespace(namespace)
 
         @functools.lru_cache
@@ -460,6 +594,14 @@ class MultiLogger:
         self.scalars[namespace][key] = scalar_future
 
     def log_string(self, key: str, value: Callable[[], str] | str, *, namespace: str | None = None) -> None:
+        """Logs a string value.
+
+        Args:
+            key: The key being logged
+            value: The string value being logged
+            namespace: An optional logging namespace
+        """
+
         namespace = self.resolve_namespace(namespace)
 
         @functools.lru_cache
@@ -470,7 +612,26 @@ class MultiLogger:
 
         self.strings[namespace][key] = value_future
 
-    def log_image(self, key: str, value: Callable[[], Tensor] | Tensor, *, namespace: str | None = None) -> None:
+    def log_image(
+        self,
+        key: str,
+        value: Callable[[], Tensor] | Tensor,
+        *,
+        namespace: str | None = None,
+        keep_resolution: bool = False,
+    ) -> None:
+        """Logs an image.
+
+        Args:
+            key: The key being logged
+            value: The image being logged; can be (C, H, W), (H, W, C) or (H, W)
+                as an RGB (3 channel) or grayscale (1 channel) image
+            namespace: An optional logging namespace
+            keep_resolution: If set, keep the image resolution the same,
+                otherwise upscale or downscale the image to a standard
+                resolution
+        """
+
         namespace = self.resolve_namespace(namespace)
 
         @functools.lru_cache
@@ -478,9 +639,46 @@ class MultiLogger:
             value_concrete = value() if callable(value) else value
             assert isinstance(value_concrete, Tensor)
             value_concrete = cast_fp32(value_concrete)
-            return standardize_image(value_concrete, log_key=f"{namespace}/{key}")
+            return standardize_image(value_concrete, log_key=f"{namespace}/{key}", keep_resolution=keep_resolution)
 
         self.images[namespace][key] = image_future
+
+    def log_labeled_image(
+        self,
+        key: str,
+        value: Callable[[], Tuple[Tensor, str]] | Tuple[Tensor, str],
+        *,
+        namespace: str | None = None,
+        max_line_length: int | None = None,
+        keep_resolution: bool = False,
+    ) -> None:
+        """Logs an image with a label.
+
+        Args:
+            key: The key being logged
+            value: The image and label being logged; the image can be (C, H, W),
+                (H, W, C) or (H, W) as an RGB (3 channel) or grayscale
+                (1 channel) image
+            namespace: An optional logging namespace
+            max_line_length: Labels longer than this length are wrapped around
+            keep_resolution: If set, keep the image resolution the same,
+                otherwise upscale or downscale the image to a standard
+                resolution
+        """
+
+        namespace = self.resolve_namespace(namespace)
+
+        @functools.lru_cache
+        def labeled_image_future() -> Tensor:
+            image, text = value() if callable(value) else value
+            assert isinstance(image, Tensor)
+            assert isinstance(text, str)
+            image = standardize_image(image, log_key=f"{namespace}/{key}", keep_resolution=keep_resolution)
+            text = standardize_text(text, max_line_length=max_line_length)
+            image = cast_fp32(image)
+            return image_with_text(image, text)
+
+        self.images[namespace][key] = labeled_image_future
 
     def log_images(
         self,
@@ -488,20 +686,100 @@ class MultiLogger:
         value: Callable[[], Tensor] | Tensor,
         *,
         namespace: str | None = None,
+        keep_resolution: bool = False,
         max_images: int | None = None,
         sep: int = 0,
     ) -> None:
+        """Logs a set of images.
+
+        The images are tiled to be nearly-square.
+
+        Args:
+            key: The key being logged
+            value: The images being logged; can be (B, C, H, W), (B, H, W, C)
+                or (B H, W) as an RGB (3 channel) or grayscale (1 channel) image
+            namespace: An optional logging namespace
+            keep_resolution: If set, keep the image resolution the same,
+                otherwise upscale or downscale the image to a standard
+                resolution
+            max_images: The maximum number of images to show; extra images
+                are clipped
+            sep: An optional separation amount between adjacent images
+        """
+
         namespace = self.resolve_namespace(namespace)
 
         @functools.lru_cache
         def images_future() -> Tensor:
             value_concrete = value() if callable(value) else value
             assert isinstance(value_concrete, Tensor)
-            value_concrete = standardize_images(value_concrete, max_images=max_images, log_key=f"{namespace}/{key}")
+            value_concrete = standardize_images(
+                value_concrete,
+                max_images=max_images,
+                log_key=f"{namespace}/{key}",
+                keep_resolution=keep_resolution,
+            )
             value_concrete = cast_fp32(value_concrete)
             return make_square_image_or_video(value_concrete, sep=sep)
 
         self.images[namespace][key] = images_future
+
+    def log_labeled_images(
+        self,
+        key: str,
+        value: Callable[[], Tuple[Tensor, Sequence[str]]] | Tuple[Tensor, Sequence[str]],
+        *,
+        namespace: str | None = None,
+        max_line_length: int | None = None,
+        keep_resolution: bool = False,
+        max_images: int | None = None,
+        sep: int = 0,
+    ) -> None:
+        """Logs a set of images with labels.
+
+        The images are tiled to be nearly-square.
+
+        Args:
+            key: The key being logged
+            value: The images and labels being logged; images can be
+                (B, C, H, W), (B, H, W, C) or (B H, W) as an RGB (3 channel)
+                or grayscale (1 channel) image, with exactly B labels
+            namespace: An optional logging namespace
+            max_line_length: Labels longer than this length are wrapped around
+            keep_resolution: If set, keep the image resolution the same,
+                otherwise upscale or downscale the image to a standard
+                resolution
+            max_images: The maximum number of images to show; extra images
+                are clipped
+            sep: An optional separation amount between adjacent images
+        """
+
+        namespace = self.resolve_namespace(namespace)
+
+        @functools.lru_cache
+        def labeled_images_future() -> Tensor:
+            images, texts = value() if callable(value) else value
+            assert isinstance(images, Tensor)
+            assert images.shape[0] == len(texts)
+            num_images = len(images)
+            images = standardize_images(
+                images,
+                max_images=max_images,
+                log_key=f"{namespace}/{key}",
+                keep_resolution=keep_resolution,
+            )
+            text_lists = [standardize_text(text, max_line_length) for text in texts]
+            max_num_lines = max(len(text_list) for text_list in text_lists)
+            labeled_images = torch.stack(
+                [
+                    image_with_text(images[i], text_lists[i], max_num_lines=max_num_lines)
+                    for i in range(num_images)
+                ],
+                dim=0,
+            )
+            return make_square_image_or_video(labeled_images, sep=sep)
+
+        self.images[namespace][key] = labeled_images_future
 
     def log_video(
         self,
@@ -512,6 +790,18 @@ class MultiLogger:
         fps: int | None = None,
         length: int | None = None,
     ) -> None:
+        """Logs a video.
+
+        Args:
+            key: The key being logged
+            value: The video being logged; the video can be (T, C, H, W),
+                (T, H, W, C) or (T, H, W) as an RGB (3 channel) or grayscale
+                (1 channel) video
+            namespace: An optional logging namespace
+            fps: The video frames per second
+            length: The desired video length, in seconds, at the target FPS
+        """
+
         namespace = self.resolve_namespace(namespace)
 
         @functools.lru_cache
@@ -535,6 +825,21 @@ class MultiLogger:
         fps: int | None = None,
         length: int | None = None,
     ) -> None:
+        """Logs a set of video.
+
+        Args:
+            key: The key being logged
+            value: The videos being logged; the video can be (B, T, C, H, W),
+                (B, T, H, W, C) or (B T, H, W) as an RGB (3 channel) or
+                grayscale (1 channel) video
+            namespace: An optional logging namespace
+            max_videos: The maximum number of videos to show; extra images
+                are clipped
+            sep: An optional separation amount between adjacent videos
+            fps: The video frames per second
+            length: The desired video length, in seconds, at the target FPS
+        """
+
         namespace = self.resolve_namespace(namespace)
 
         @functools.lru_cache
@@ -549,6 +854,14 @@ class MultiLogger:
         self.videos[namespace][key] = videos_future
 
     def log_histogram(self, key: str, value: Callable[[], Tensor] | Tensor, *, namespace: str | None = None) -> None:
+        """Logs a histogram.
+
+        Args:
+            key: The key being logged
+            value: The values to create a histogram from, with arbitrary shape
+            namespace: An optional logging namespace
+        """
+
         namespace = self.resolve_namespace(namespace)
 
         @functools.lru_cache
@@ -568,6 +881,17 @@ class MultiLogger:
         namespace: str | None = None,
         max_points: int = 1000,
     ) -> None:
+        """Logs a point cloud.
+
+        Args:
+            key: The key being logged
+            value: The point cloud values, with shape (N, 3) or (B, ..., 3);
+                can pass multiple batches in order to show multiple point
+                clouds
+            namespace: An optional logging namespace
+            max_points: An optional maximum number of points in the point cloud
+        """
+
         namespace = self.resolve_namespace(namespace)
 
         @functools.lru_cache
