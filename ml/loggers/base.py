@@ -178,7 +178,7 @@ def _aminmax(t: Tensor) -> Tuple[Tensor, Tensor]:
 
 def _chunk_lines(text: str, max_length: int) -> Iterator[str]:
     for i in range(0, len(text), max_length):
-        yield text[i:i + max_length]
+        yield text[i : i + max_length]
 
 
 def standardize_text(text: str, max_line_length: int | None = None) -> List[str]:
