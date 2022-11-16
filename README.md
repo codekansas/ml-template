@@ -50,6 +50,36 @@ A new project is broken down into five parts:
 
 Most projects should just have to implement the Task and Model, and use a default trainer, optimizer and learning rate scheduler. Running the training command above will log the location of each component.
 
+New tasks, models, trainers, optimizers and learning rate schedulers are added using the same API, although each should implement different things. For example, to create a new model, make a new file under `ml/models` and add the following code:
+
+```python
+from dataclasses import dataclass
+
+from ml.core.config import conf_field
+from ml.core.registry import register_model
+from ml.models.base import BaseModel, BaseModelConfig
+
+
+@dataclass
+class NewModelConfig(BaseModelConfig):
+  some_param: int = conf_field(10)
+
+
+@register_model("new_model", NewModelConfig)
+class NewModel(BaseModel[NewModelConfig]):
+  def forward(self, x):
+    return x + self.config.some_param
+```
+
+The framework will automatically search in all of the files in `ml/models` to populate the model registry. In your config file, you can then reference the registered model using whatever key you chose:
+
+```yaml
+model:
+  name: new_model
+```
+
+Similar APIs exist for tasks, trainers, optimizers and learning rate schedulers. Try running the demo config to get a sense for how each of these fit together.
+
 ## Features
 
 This repository implements some features which I find useful when starting ML projects.
