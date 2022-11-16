@@ -20,7 +20,7 @@ import signal
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import Callable, Dict, Type, TypeVar
+from typing import Callable, Dict, TypeVar
 
 import torch
 from torch import Tensor, nn
@@ -35,8 +35,7 @@ from ml.models.base import BaseModel
 from ml.optimizers.base import BaseOptimizer
 from ml.tasks.base import BaseTask
 from ml.trainers.base import BaseTrainer, BaseTrainerConfig
-from ml.trainers.mixins.device.auto import AutoDevice
-from ml.trainers.mixins.device.base import BaseDevice, InfinitePrefetcher
+from ml.trainers.mixins.device.base import InfinitePrefetcher
 from ml.trainers.mixins.gpu_stats import GPUStatsConfig, GPUStatsMixin
 from ml.trainers.mixins.grad_clipping import (
     GradientClippingConfig,
@@ -100,14 +99,6 @@ class VanillaTrainer(
     GPUStatsMixin[VanillaTrainerConfigT],
     BaseTrainer[VanillaTrainerConfigT],
 ):
-    @functools.cached_property
-    def device(self) -> Type[BaseDevice]:
-        return AutoDevice.get_device_from_key(self.config.device)
-
-    @functools.cached_property
-    def device_type(self) -> str:
-        return self.device.get_device().type
-
     @functools.cached_property
     def weight_precision(self) -> torch.dtype:
         # Weights always have to be FP32 or FP64, because AMP doesn't like
@@ -207,7 +198,7 @@ class VanillaTrainer(
                 state.num_test_steps += 1
 
     def get_task_model(self, task: BaseTask, model: BaseModel) -> nn.Module:
-        device, dtype = self.device.get_device(), self.weight_precision
+        device, dtype = self._device.get_device(), self.weight_precision
         model.init(device, dtype)
         task.to(device, dtype, non_blocking=True)
         return TaskModel(task=task, model=model)
@@ -289,8 +280,8 @@ class VanillaTrainer(
         valid_dl = task.get_dataloader(valid_ds, "valid")
 
         # Gets the prefetchers.
-        train_pf = self.device.get_prefetcher(train_dl)
-        valid_pf = self.device.get_prefetcher(valid_dl)
+        train_pf = self._device.get_prefetcher(train_dl)
+        valid_pf = self._device.get_prefetcher(valid_dl)
         valid_pf_infinite = InfinitePrefetcher(valid_pf)
 
         try:
@@ -382,7 +373,7 @@ class VanillaTrainer(
         # Gets the dataset, dataloader and prefetcher.
         test_ds = task.get_dataset("test")
         test_dl = task.get_dataloader(test_ds, "test")
-        test_pf = self.device.get_prefetcher(test_dl)
+        test_pf = self._device.get_prefetcher(test_dl)
 
         def load_checkpoint(ckpt_path: Path) -> State:
             with Timer("loading checkpoint"):

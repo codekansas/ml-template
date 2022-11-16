@@ -1,4 +1,5 @@
 import enum
+import functools
 import logging
 import os
 from abc import ABC, abstractmethod
@@ -13,6 +14,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     TypeVar,
     cast,
     get_args,
@@ -31,6 +33,8 @@ from ml.lr_schedulers.base import BaseLRScheduler, SchedulerAdapter
 from ml.models.base import BaseModel
 from ml.optimizers.base import BaseOptimizer
 from ml.tasks.base import BaseTask
+from ml.trainers.mixins.device.auto import AutoDevice
+from ml.trainers.mixins.device.base import BaseDevice
 from ml.utils.colors import colorize
 from ml.utils.distributed import is_master
 from ml.utils.timer import Timer
@@ -259,6 +263,14 @@ class BaseTrainer(BaseObjectWithPointers[TrainerConfigT], Generic[TrainerConfigT
         self.logger = MultiLogger(default_namespace="trainer")
 
         logger.info("Experiment directory: %s", self.exp_dir)
+
+    @functools.cached_property
+    def _device(self) -> Type[BaseDevice]:
+        return AutoDevice.get_device_from_key(self.config.device)
+
+    @functools.cached_property
+    def _device_type(self) -> str:
+        return self._device.get_device().type
 
     def add_logger(self, sublogger: BaseLogger) -> None:
         sublogger.initialize(self.log_dir)

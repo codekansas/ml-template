@@ -91,7 +91,7 @@ class DDPTrainer(VanillaTrainer):
         return task_model
 
     def launch(self) -> None:
-        device_count = self.device.device_count()
+        device_count = self._device.device_count()
         func = functools.partial(process_main, raw_config=self.raw_config)
 
         cfg = MultiprocessConfig(

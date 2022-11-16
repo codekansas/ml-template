@@ -1,4 +1,3 @@
-import contextlib
 from dataclasses import dataclass
 from typing import Any, ContextManager, Dict, TypeVar
 
@@ -81,9 +80,4 @@ class MixedPrecisionTrainerMixin(BaseTrainer[ConfigT]):
         super().update_state_dict(ckpt)
 
     def autocast_context(self) -> ContextManager:
-        device_type = self.device.get_device().type
-        if device_type == "mps":
-            device_type = "cpu"
-        if device_type not in ("cpu", "cuda"):
-            return contextlib.nullcontext()
-        return torch.autocast(device_type, enabled=self.config.fp16.enabled)
+        return self._device.autocast_context(enabled=self.config.fp16.enabled)

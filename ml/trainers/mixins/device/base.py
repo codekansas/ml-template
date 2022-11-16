@@ -1,7 +1,17 @@
+import contextlib
 import functools
 from abc import ABC, abstractmethod
 from dataclasses import is_dataclass
-from typing import Any, Callable, Iterator, List, Mapping, Sequence, TypeVar
+from typing import (
+    Any,
+    Callable,
+    ContextManager,
+    Iterator,
+    List,
+    Mapping,
+    Sequence,
+    TypeVar,
+)
 
 import numpy as np
 import torch
@@ -197,3 +207,12 @@ class BaseDevice(ABC):
         if tensor.is_floating_point():
             return tensor.to(device, cls.get_floating_point_type())
         return tensor.to(device)
+
+    @classmethod
+    def autocast_context(cls, enabled: bool = True) -> ContextManager:
+        device_type = cls.get_device().type
+        if device_type == "mps":
+            device_type = "cpu"
+        if device_type not in ("cpu", "cuda"):
+            return contextlib.nullcontext()
+        return torch.autocast(device_type, enabled=enabled)
