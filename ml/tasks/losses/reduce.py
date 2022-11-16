@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Literal, cast, get_args
 
 from torch import Tensor, nn

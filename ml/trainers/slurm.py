@@ -14,7 +14,6 @@ Steps
 This allows for repeatability by just scheduling the same `sbatch.sh` file.
 """
 
-from __future__ import annotations
 
 import logging
 import os

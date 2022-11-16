@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import functools
 from abc import ABC, abstractmethod
 from dataclasses import is_dataclass
@@ -105,7 +103,7 @@ class Prefetcher(Iterator[BatchType]):
             return [cls.recursive_apply(i, func) for i in item]
         return item
 
-    def __iter__(self) -> Prefetcher:
+    def __iter__(self) -> "Prefetcher":
         self.dataloader_iter = iter(self.dataloader)
         self.prefetch()
         return self

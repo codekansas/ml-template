@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import enum
 import logging
 import os
@@ -236,7 +234,7 @@ class BaseTrainerConfig(BaseConfig):
     checkpoint: CheckpointConfig = CheckpointConfig()
 
     @classmethod
-    def resolve(cls, config: BaseTrainerConfig) -> None:
+    def resolve(cls, config: "BaseTrainerConfig") -> None:
         if OmegaConf.is_missing(config, "run_id"):
             config.run_id = get_run_id(Path(config.base_run_dir), config.exp_name)
         super().resolve(config)

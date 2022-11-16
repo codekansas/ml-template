@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 from dataclasses import dataclass
 
@@ -20,7 +18,7 @@ class CosineLRSchedulerConfig(BaseLRSchedulerConfig):
     eta_max: float = conf_field(1.0, help="Maximum learning rate scale")
 
     @classmethod
-    def resolve(cls, config: CosineLRSchedulerConfig) -> None:
+    def resolve(cls, config: "CosineLRSchedulerConfig") -> None:
         if OmegaConf.is_missing(config, "ramp_up_steps"):
             assert 0 <= config.ramp_up_percent < 1
             config.ramp_up_steps = int(config.phase * config.ramp_up_percent)

@@ -12,7 +12,6 @@ types of normalization functions. My usual approach is to just throw everything
 at the wall and see what sticks.
 """
 
-from __future__ import annotations
 
 from typing import Literal, Optional, cast, get_args
 

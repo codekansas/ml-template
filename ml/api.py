@@ -44,6 +44,7 @@ from ml.models.norms import (
 from ml.optimizers.base import BaseOptimizer, BaseOptimizerConfig
 from ml.tasks.base import BaseTask, BaseTaskConfig
 from ml.trainers.base import BaseTrainer, BaseTrainerConfig
+from ml.trainers.mixins.device.auto import AutoDevice
 from ml.utils.argparse import from_args, get_args, get_type_from_string
 from ml.utils.atomic import atomic_save, open_atomic
 from ml.utils.augmentation import get_image_mask
@@ -62,5 +63,6 @@ from ml.utils.distributed import (
     is_master,
 )
 from ml.utils.large_models import init_empty_weights, meta_to_empty_func
+from ml.utils.logging import configure_logging
 from ml.utils.timer import Timer
 from ml.utils.video import READERS as VIDEO_READERS, WRITERS as VIDEO_WRITERS

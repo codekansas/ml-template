@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Dict
 
@@ -19,14 +17,14 @@ class LinearLRSchedulerConfig(BaseLRSchedulerConfig):
     min_scale: float = conf_field(1e-4, help="Minimum learning rate scale")
 
     @classmethod
-    def get_defaults(cls) -> Dict[str, LinearLRSchedulerConfig]:
+    def get_defaults(cls) -> Dict[str, "LinearLRSchedulerConfig"]:
         return {
             "linear_100k": LinearLRSchedulerConfig(total_steps=100_000),
             "linear_500k": LinearLRSchedulerConfig(total_steps=500_000),
         }
 
     @classmethod
-    def resolve(cls, config: LinearLRSchedulerConfig) -> None:
+    def resolve(cls, config: "LinearLRSchedulerConfig") -> None:
         if OmegaConf.is_missing(config, "warmup_steps"):
             config.warmup_steps = int(config.total_steps * config.warmup_percent)
         super().resolve(config)

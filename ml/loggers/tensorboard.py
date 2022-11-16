@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import atexit
 import datetime
 import functools
@@ -44,7 +42,7 @@ class TensorboardLoggerConfig(BaseLoggerConfig):
     start_in_subprocess: bool = conf_field(True, help="Start TensorBoard subprocess")
 
     @classmethod
-    def resolve(cls, config: TensorboardLoggerConfig) -> None:
+    def resolve(cls, config: "TensorboardLoggerConfig") -> None:
         if OmegaConf.is_missing(config, "log_id"):
             config.log_id = datetime.datetime.now().strftime("%H-%M-%S")
         super().resolve(config)

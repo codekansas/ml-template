@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import atexit
 import datetime
 from dataclasses import dataclass

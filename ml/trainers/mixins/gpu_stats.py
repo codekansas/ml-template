@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import atexit
 import logging
 import multiprocessing as mp

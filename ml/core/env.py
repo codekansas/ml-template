@@ -5,7 +5,6 @@ easily referenced, don't use `os.environ` or `os.getenv` outside of this file.
 Instead, add a new accessor function to this file.
 """
 
-from __future__ import annotations
 
 import os
 from pathlib import Path

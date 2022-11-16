@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 from dataclasses import dataclass
 
@@ -22,7 +20,7 @@ class CosineDecayLRSchedulerConfig(BaseLRSchedulerConfig):
     eta_max: float = conf_field(1.0, help="Maximum learning rate scale")
 
     @classmethod
-    def resolve(cls, config: CosineDecayLRSchedulerConfig) -> None:
+    def resolve(cls, config: "CosineDecayLRSchedulerConfig") -> None:
         if OmegaConf.is_missing(config, "phase"):
             config.phase = int(config.total_steps / (config.num_resets + 1))
         if OmegaConf.is_missing(config, "ramp_up_steps"):

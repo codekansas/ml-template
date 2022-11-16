@@ -8,8 +8,8 @@
   "cmake.cmakePath": "${env:CONDA_PREFIX}/bin/cmake",
   "cmake.configureSettings": {
     "CMAKE_PREFIX_PATH": [
-      "${env:CONDA_PREFIX}/lib/python3.8/site-packages/torch/share/cmake",
-      "${env:CONDA_PREFIX}/lib/python3.8/site-packages/pybind11/share/cmake/pybind11"
+      "${env:CONDA_PREFIX}/lib/python3.10/site-packages/torch/share/cmake",
+      "${env:CONDA_PREFIX}/lib/python3.10/site-packages/pybind11/share/cmake/pybind11"
     ],
     "TORCH_CUDA_ARCH_LIST": "'3.7;5.0;6.0;7.0;7.5;8.0;8.6'",
 

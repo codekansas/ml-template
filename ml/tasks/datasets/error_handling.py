@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import bdb
 import logging
 import random

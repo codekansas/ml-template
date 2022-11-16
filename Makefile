@@ -6,7 +6,7 @@ define HELP_MESSAGE
 
 # Installing
 
-1. Create a new Conda environment: `conda create --name ml-template python=3.8`
+1. Create a new Conda environment: `conda create --name ml-template python=3.10`
 2. Activate the environment: `conda activate ml-template`
 3. Install dependencies: `make install-deps`
 4. Install the package: `make install`
@@ -30,8 +30,8 @@ all:
 # ------------------------ #
 
 # Configuration options.
-TORCH_VERSION_BASE := 1.12.1
-TORCHVISION_VERSION_BASE := 0.13.1
+TORCH_VERSION_BASE := 1.13
+TORCHVISION_VERSION_BASE := 0.14.0
 CUDA_VERSION := cu116
 
 # Detects backend.
@@ -105,7 +105,7 @@ ifeq (, $(shell which conda))
 else ifeq (, $(CONDA_DEFAULT_ENV))
 	$(error Conda not installed or not initialized)
 else ifeq (base, $(CONDA_DEFAULT_ENV))
-	$(error Don't install this package into the base environment. Run 'conda create --name ml python=3.8' then 'conda activate ml`)
+	$(error Don't install this package into the base environment. Run 'conda create --name ml python=3.10' then 'conda activate ml`)
 else
 	conda install -c conda-forge mamba
 endif
