@@ -234,6 +234,7 @@ class BaseTrainerConfig(BaseConfig):
     log_dir_name: str = conf_field("logs", help="Name of the subdirectory which contains logs")
     base_run_dir: str = conf_field(II("resolve:${oc.env:RUN_DIR}"), help="The base directory for all runs")
     run_id: int = conf_field(MISSING, help="The run ID to use")
+    use_double_weight_precision: bool = conf_field(False, help="If set, use doubles for weights instead of floats")
     validation: ValidationConfig = ValidationConfig()
     checkpoint: CheckpointConfig = CheckpointConfig()
 
@@ -271,6 +272,12 @@ class BaseTrainer(BaseObjectWithPointers[TrainerConfigT], Generic[TrainerConfigT
     @functools.cached_property
     def _device_type(self) -> str:
         return self._device.get_device().type
+
+    @functools.cached_property
+    def _weight_precision(self) -> torch.dtype:
+        # Weights always have to be FP32 or FP64, because AMP doesn't like
+        # gradients which are in FP16.
+        return torch.float64 if self.config.use_double_weight_precision else torch.float32
 
     def add_logger(self, sublogger: BaseLogger) -> None:
         sublogger.initialize(self.log_dir)

@@ -14,7 +14,6 @@ Summary table:
 
 
 import contextlib
-import functools
 import logging
 import signal
 from dataclasses import dataclass
@@ -85,7 +84,6 @@ class VanillaTrainerConfig(
     use_tf32: bool = conf_field(True, help="If set, use TensorFloat32")
     update_interval: int = conf_field(1, help="How often to update model parameters")
     device: str = conf_field("auto", help="The trainer device type being used")
-    use_double_weight_precision: bool = conf_field(False, help="If set, use doubles for weights instead of floats")
 
 
 VanillaTrainerConfigT = TypeVar("VanillaTrainerConfigT", bound=VanillaTrainerConfig)
@@ -99,12 +97,6 @@ class VanillaTrainer(
     GPUStatsMixin[VanillaTrainerConfigT],
     BaseTrainer[VanillaTrainerConfigT],
 ):
-    @functools.cached_property
-    def weight_precision(self) -> torch.dtype:
-        # Weights always have to be FP32 or FP64, because AMP doesn't like
-        # gradients which are in FP16.
-        return torch.float64 if self.config.use_double_weight_precision else torch.float32
-
     def train_step(
         self,
         *,
@@ -198,7 +190,7 @@ class VanillaTrainer(
                 state.num_test_steps += 1
 
     def get_task_model(self, task: BaseTask, model: BaseModel) -> nn.Module:
-        device, dtype = self._device.get_device(), self.weight_precision
+        device, dtype = self._device.get_device(), self._weight_precision
         model.init(device, dtype)
         task.to(device, dtype, non_blocking=True)
         return TaskModel(task=task, model=model)
