@@ -146,19 +146,19 @@ def collate(
 
     # All Numpy arrays are converted to tensors.
     if isinstance(item, np.ndarray):
-        return collate([torch.from_numpy(i) for i in items], mode=mode)
+        return collate([torch.from_numpy(i) for i in items], mode=mode, pad=pad)
 
     # All images are converted to tensors.
     if isinstance(item, Image):
-        return collate([V.to_tensor(i) for i in items], mode=mode)
+        return collate([V.to_tensor(i) for i in items], mode=mode, pad=pad)
 
     # Numbers are converted to a list of tensors.
     if isinstance(item, bool):
-        return collate([torch.BoolTensor([i]) for i in items], mode=mode)
+        return collate([torch.BoolTensor([i]) for i in items], mode=mode, pad=pad)
     if isinstance(item, int):
-        return collate([torch.IntTensor([i]) for i in items], mode=mode)
+        return collate([torch.IntTensor([i]) for i in items], mode=mode, pad=pad)
     if isinstance(item, float):
-        return collate([torch.FloatTensor([i]) for i in items], mode=mode)
+        return collate([torch.FloatTensor([i]) for i in items], mode=mode, pad=pad)
 
     # Tensors are either concatenated or stacked.
     if isinstance(item, Tensor):
@@ -181,14 +181,14 @@ def collate(
         output_dict = {}
         item_keys = set(item.keys())
         for key in item_keys:
-            output_dict[key] = collate([i[key] for i in items], mode=mode)
+            output_dict[key] = collate([i[key] for i in items], mode=mode, pad=pad)
         return output_dict
 
     # Collate lists and tuples if they have the same lengths.
     if isinstance(item, (list, tuple)) and all(len(i) == len(item) for i in items):
         output_list = []
         for j in range(len(item)):
-            output_list.append(collate([i[j] for i in items], mode=mode))
+            output_list.append(collate([i[j] for i in items], mode=mode, pad=pad))
         if is_named_tuple(item):
             return type(item)(*output_list)  # type: ignore
         if isinstance(item, tuple):
@@ -200,7 +200,7 @@ def collate(
         output_dict = {}
         item_keys = item.__dict__.keys()
         for key in item_keys:
-            output_dict[key] = collate([getattr(i, key) for i in items], mode=mode)
+            output_dict[key] = collate([getattr(i, key) for i in items], mode=mode, pad=pad)
         return item.__class__(**output_dict)
 
     # By default, don't do anything.
