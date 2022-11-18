@@ -1,13 +1,13 @@
 import random
 from typing import List, Tuple, TypeVar
 
-import PIL
 import torch
 import torchvision.transforms.functional as V
+from PIL.Image import Image as PILImage
 from torch import Tensor, nn
 from torchvision.transforms import InterpolationMode
 
-Image = TypeVar("Image", Tensor, PIL.Image.Image)
+Image = TypeVar("Image", Tensor, PILImage)
 
 NormParams = Tuple[float, float, float]
 
@@ -45,7 +45,7 @@ def rescale(x: Image, scale: float, min_val: float, do_checks: bool = False) -> 
     return x * scale + min_val
 
 
-def convert_image_to_rgb(image: PIL.Image) -> PIL.Image:
+def convert_image_to_rgb(image: PILImage) -> PILImage:
     return image.convert("RGB")
 
 
