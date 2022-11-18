@@ -38,7 +38,7 @@ class Timer:
 
 def timeout(seconds: int, error_message: str = os.strerror(errno.ETIME)) -> Callable[[F], F]:
     """Decorator for timing out long-running functions.
-    
+
     Note that this function won't work on Windows.
 
     Usage:

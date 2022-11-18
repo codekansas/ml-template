@@ -64,5 +64,5 @@ from ml.utils.distributed import (
 )
 from ml.utils.large_models import init_empty_weights, meta_to_empty_func
 from ml.utils.logging import configure_logging
-from ml.utils.timer import Timer
+from ml.utils.timer import Timer, timeout
 from ml.utils.video import READERS as VIDEO_READERS, WRITERS as VIDEO_WRITERS
