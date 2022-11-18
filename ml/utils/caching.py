@@ -2,13 +2,28 @@ import functools
 import json
 import logging
 import pickle
-from typing import Any, Callable, List, Literal, TypeVar, get_args
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    List,
+    Literal,
+    Mapping,
+    Sequence,
+    Tuple,
+    TypeVar,
+    get_args,
+)
+
+import numpy as np
 
 from ml.core.env import get_cache_dir
 
 logger = logging.getLogger(__name__)
 
 Object = TypeVar("Object", bound=Any)
+Tk = TypeVar("Tk")
+Tv = TypeVar("Tv")
 
 CacheType = Literal["pkl", "json"]
 
@@ -91,3 +106,36 @@ class cached_object:  # pylint: disable=invalid-name
             raise NotImplementedError(f"Can't save extension {self.ext}")
 
         return call_function_cached
+
+
+class Index(Generic[Tk, Tv]):
+    def __init__(self, items: Mapping[Tk, Sequence[Tv]]):
+        """Indexes a dictionary with values that are lists.
+
+        This lazily indexes all the values in the provided dictionary, flattens
+        them out and allows them to be looked up by a specific index. This is
+        analogous to PyTorch's ConcatDataset.
+
+        Args:
+            items: The dictionary to index
+        """
+
+        self.items = items
+
+    @functools.cached_property
+    def _item_list(self) -> List[Tuple[Tk, List[Tv]]]:
+        return [(k, list(v)) for k, v in self.items.items()]
+
+    @functools.cached_property
+    def _indices(self) -> np.ndarray:
+        return np.concatenate([np.array([0]), np.cumsum(np.array([len(i) for _, i in self._item_list]))])
+
+    def __getitem__(self, index: int) -> Tuple[Tk, Tv]:
+        a = np.searchsorted(self._indices, index, side="right") - 1
+        b = index - self._indices[a]
+        key, values = self._item_list[a]
+        value = values[b]
+        return key, value
+
+    def __len__(self) -> int:
+        return self._indices[-1].item()
