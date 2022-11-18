@@ -29,7 +29,7 @@ CacheType = Literal["pkl", "json"]
 
 
 class cached_object:  # pylint: disable=invalid-name
-    def __init__(self, cache_key: str, ext: CacheType = "pkl", ignore: bool = False) -> None:
+    def __init__(self, cache_key: str, ext: CacheType = "pkl", ignore: bool = False, cache_obj: bool = True) -> None:
         """Defines a wrapper for caching function calls to a file location.
 
         This is just a convenient way of caching heavy operations to disk,
@@ -48,12 +48,15 @@ class cached_object:  # pylint: disable=invalid-name
             cache_key: The key to use for caching the file
             ext: The caching type to use (JSON or pickling)
             ignore: Should the cache be ignored?
+            cache_obj: If set, keep the object around to avoid deserializing it
+                when it is accessed again
         """
 
         self.cache_key = cache_key
         self.ext = ext
         self.obj = None
         self.ignore = ignore
+        self.cache_obj = cache_obj
 
         assert ext in get_args(CacheType), f"Unexpected extension: {ext}"
 
@@ -91,18 +94,20 @@ class cached_object:  # pylint: disable=invalid-name
                         return pickle.load(fb)
                 raise NotImplementedError(f"Can't load extension {self.ext}")
 
-            self.obj = func(*args, **kwargs)
+            obj = func(*args, **kwargs)
+            if self.cache_obj:
+                self.obj = obj
 
             logger.debug("Saving cached object to %s", fpath)
             fpath.parent.mkdir(exist_ok=True, parents=True)
             if self.ext == "json":
                 with open(fpath, "w", encoding="utf-8") as f:
-                    json.dump(self.obj, f)
-                    return self.obj
+                    json.dump(obj, f)
+                    return obj
             if self.ext == "pkl":
                 with open(fpath, "wb") as fb:
-                    pickle.dump(self.obj, fb)
-                    return self.obj
+                    pickle.dump(obj, fb)
+                    return obj
             raise NotImplementedError(f"Can't save extension {self.ext}")
 
         return call_function_cached
