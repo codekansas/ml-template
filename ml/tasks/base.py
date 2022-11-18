@@ -161,7 +161,7 @@ DEFAULT_DATALOADER_CONFIGS: Dict[str, DataLoaderConfig] = {
     ),
     "valid": DataLoaderConfig(
         batch_size=II("task.dataloader.train.batch_size"),
-        shuffle=False,
+        shuffle=True,
         num_workers=0,
         pin_memory=False,
         drop_last=False,
