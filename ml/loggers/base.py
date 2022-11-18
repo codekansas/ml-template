@@ -179,17 +179,20 @@ def _chunk_lines(text: str, max_length: int) -> Iterator[str]:
         yield text[i : i + max_length]
 
 
-def standardize_text(text: str, max_line_length: int | None = None) -> List[str]:
+def standardize_text(text: str, max_line_length: int | None = None, remove_non_ascii: bool = False) -> List[str]:
     """Standardizes a text string to a list of lines.
 
     Args:
         text: The text to standardize
         max_line_length: If set, truncate lines to this length
+        remove_non_ascii: Remove non-ASCII characters if present
 
     Returns:
         The standardized text lines
     """
 
+    if remove_non_ascii:
+        text = "".join(char for char in text if ord(char) < 128)
     lines = [re.sub(r"\s+", " ", line) for line in re.split(r"[\n\r]+", text.strip())]
     if max_line_length is not None:
         lines = [subline for line in lines for subline in _chunk_lines(line, max_line_length)]
@@ -682,7 +685,7 @@ class MultiLogger:
             assert isinstance(image, Tensor)
             assert isinstance(text, str)
             image = standardize_image(image, log_key=f"{namespace}/{key}", keep_resolution=keep_resolution)
-            text = standardize_text(text, max_line_length=max_line_length)
+            text = standardize_text(text, max_line_length=max_line_length, remove_non_ascii=True)
             image = cast_fp32(image)
             return image_with_text(image, text, centered=centered)
 
@@ -779,7 +782,7 @@ class MultiLogger:
                 log_key=f"{namespace}/{key}",
                 keep_resolution=keep_resolution,
             )
-            text_lists = [standardize_text(text, max_line_length) for text in texts]
+            text_lists = [standardize_text(text, max_line_length, remove_non_ascii=True) for text in texts]
             max_num_lines = max(len(text_list) for text_list in text_lists)
             labeled_images = torch.stack(
                 [
