@@ -1,8 +1,14 @@
+import errno
+import functools
 import logging
+import os
+import signal
 import time
-from typing import Any, Optional
+from typing import Any, Callable, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class Timer:
@@ -28,3 +34,43 @@ class Timer:
         self._elapsed_time = time.time() - self._start_time
         if self._elapsed_time > self.min_seconds_to_print:
             logger.warning("Finished %s in %.3g seconds", self.description, self._elapsed_time)
+
+
+def timeout(seconds: int, error_message: str = os.strerror(errno.ETIME)) -> Callable[[F], F]:
+    """Decorator for timing out long-running functions.
+    
+    Note that this function won't work on Windows.
+
+    Usage:
+        try:
+            @timeout(5)
+            def long_running_function():
+                ...
+        except TimeoutError:
+            handle_timeout()
+
+    Args:
+        seconds: Timeout after this many seconds
+        error_message: Error message to pass to TimeoutError
+
+    Returns:
+        Decorator function
+    """
+
+    def decorator(func: F) -> F:
+        def _handle_timeout(*_: Any) -> None:
+            raise TimeoutError(error_message)
+
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            signal.signal(signal.SIGALRM, _handle_timeout)
+            signal.alarm(seconds)
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                signal.alarm(0)
+            return result
+
+        return wrapper  # type: ignore
+
+    return decorator
