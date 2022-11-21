@@ -78,6 +78,7 @@ class ExceptionSummary:
         # Logs the total number of exceptions.
         lines += [get_line_break()]
         lines += [get_log_line("Total", self.total_exceptions)]
+        lines += [get_log_line("Steps", self.steps)]
         lines += [get_line_break()]
 
         return "\n".join(lines)
@@ -87,6 +88,7 @@ class ExceptionSummary:
         if (worker_info is None or worker_info.id == 0) and self.total_exceptions > 0:
             logger.info("Exception summary:\n\n%s\n", self.summary())
         self.exceptions.clear()
+        self.exception_classes.clear()
         self.steps = 0
         self.total_exceptions = 0
 
