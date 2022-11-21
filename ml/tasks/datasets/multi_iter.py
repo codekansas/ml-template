@@ -15,7 +15,13 @@ class DatasetInfo(Generic[T]):
 
 
 class MultiIterDataset(IterableDataset[T]):
-    def __init__(self, datasets: List[DatasetInfo[T]], *, until_all_empty: bool = False) -> None:
+    def __init__(
+        self,
+        datasets: List[DatasetInfo[T]],
+        *,
+        until_all_empty: bool = False,
+        iterate_forever: bool = False,
+    ) -> None:
         """Defines a dataset for iterating from multiple iterable datasets.
 
         Args:
@@ -23,6 +29,7 @@ class MultiIterDataset(IterableDataset[T]):
                 how to iterate them; specifically,
             until_all_empty: If set, iterates until all datasets are empty,
                 otherwise only iterate until any dataset is empty
+            iterate_forever: If set, iterate child dataset forever
         """
         super().__init__()
 
@@ -30,6 +37,7 @@ class MultiIterDataset(IterableDataset[T]):
 
         self.datasets = datasets
         self.until_all_empty = until_all_empty
+        self.iterate_forever = iterate_forever
 
     iterators: List[Iterator[T]]
     rate_cumsum: np.ndarray
@@ -49,9 +57,13 @@ class MultiIterDataset(IterableDataset[T]):
                 return iterator.__next__()
 
             except StopIteration:
-                if not self.until_all_empty or len(self.iterators) == 1:
+                if not (self.until_all_empty or self.iterate_forever) or len(self.iterators) == 1:
                     raise
 
-                self.iterators.pop(idx)
-                lhs, rhs = self.rate_cumsum[:idx], self.rate_cumsum[idx + 1 :] - self.rate_cumsum[idx]
-                self.rate_cumsum = np.concatenate([lhs, rhs])
+                if self.iterate_forever:
+                    # Restart iterator.
+                    self.iterators[idx] = self.datasets[idx].dataset.__iter__()
+                else:
+                    self.iterators.pop(idx)
+                    lhs, rhs = self.rate_cumsum[:idx], self.rate_cumsum[idx + 1 :] - self.rate_cumsum[idx]
+                    self.rate_cumsum = np.concatenate([lhs, rhs])

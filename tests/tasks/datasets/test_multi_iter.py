@@ -1,3 +1,4 @@
+import itertools
 import random
 from typing import Iterator
 
@@ -31,3 +32,11 @@ def test_multi_iter_all_empty() -> None:
     datasets = [DummyDataset(i) for i in range(1, 5)]
     ds = MultiIterDataset([DatasetInfo(d, random.random()) for d in datasets], until_all_empty=True)
     assert sum(val for val in ds) == sum(sum(val for val in d) for d in datasets)
+
+
+def test_iter_forever() -> None:
+    """Tests iterating forever."""
+
+    datasets = [DummyDataset(i) for i in range(1, 5)]
+    ds = MultiIterDataset([DatasetInfo(d, random.random()) for d in datasets], iterate_forever=True)
+    assert sum(itertools.islice(ds, 100)) > sum(sum(val for val in d) for d in datasets)
