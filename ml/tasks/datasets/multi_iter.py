@@ -1,6 +1,6 @@
 import random
 from dataclasses import dataclass
-from typing import Generic, Iterator, List, TypeVar
+from typing import Generic, Iterable, Iterator, List, TypeVar
 
 import numpy as np
 from torch.utils.data.dataset import IterableDataset
@@ -17,7 +17,7 @@ class DatasetInfo(Generic[T]):
 class MultiIterDataset(IterableDataset[T]):
     def __init__(
         self,
-        datasets: List[DatasetInfo[T]],
+        datasets: Iterable[DatasetInfo[T]],
         *,
         until_all_empty: bool = False,
         iterate_forever: bool = False,
@@ -33,9 +33,9 @@ class MultiIterDataset(IterableDataset[T]):
         """
         super().__init__()
 
-        assert all(i.sampling_rate > 0 for i in datasets)
+        self.datasets = list(datasets)
+        assert all(i.sampling_rate > 0 for i in self.datasets)
 
-        self.datasets = datasets
         self.until_all_empty = until_all_empty
         self.iterate_forever = iterate_forever
 
