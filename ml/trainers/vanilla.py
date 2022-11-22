@@ -34,6 +34,7 @@ from ml.models.base import BaseModel
 from ml.optimizers.base import BaseOptimizer
 from ml.tasks.base import BaseTask
 from ml.trainers.base import BaseTrainer, BaseTrainerConfig
+from ml.trainers.mixins.cpu_stats import CPUStatsConfig, CPUStatsMixin
 from ml.trainers.mixins.device.base import InfinitePrefetcher
 from ml.trainers.mixins.gpu_stats import GPUStatsConfig, GPUStatsMixin
 from ml.trainers.mixins.grad_clipping import (
@@ -77,6 +78,7 @@ class VanillaTrainerConfig(
     GradientClippingConfig,
     MixedPrecisionTrainerConfig,
     GPUStatsConfig,
+    CPUStatsConfig,
     BaseTrainerConfig,
 ):
     set_to_none: bool = conf_field(True, help="Mode for clearing optimizer gradients")
@@ -95,6 +97,7 @@ class VanillaTrainer(
     GradientClippingTrainerMixin[VanillaTrainerConfigT],
     MixedPrecisionTrainerMixin[VanillaTrainerConfigT],
     GPUStatsMixin[VanillaTrainerConfigT],
+    CPUStatsMixin[VanillaTrainerConfigT],
     BaseTrainer[VanillaTrainerConfigT],
 ):
     def train_step(

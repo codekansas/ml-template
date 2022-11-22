@@ -33,7 +33,7 @@ def get_tasks_outstanding(dataloader_iter: _BaseDataLoaderIter) -> int:
         try:
             return dataloader_iter._worker_result_queue.qsize()
         except NotImplementedError:
-            return -1
+            return -2
     return -1
 
 

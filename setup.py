@@ -197,6 +197,7 @@ setup(
         "omegaconf",
         "opencv-python",
         "pandas",
+        "psutil",
         "tensorboard",
         "tqdm",
         f"torch=={torch_version()}",

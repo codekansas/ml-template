@@ -86,17 +86,17 @@ def worker(config: ConfigT, queue: "mp.Queue[GPUStats]") -> None:
 
 
 class GPUStatsMixin(BaseTrainer[ConfigT]):
-    """Defines a trainer mixin for getting gradient statistics."""
+    """Defines a trainer mixin for getting GPU statistics."""
 
     def __init__(self, config: ConfigT) -> None:
         super().__init__(config)
 
-        self.gpu_stats: Dict[int, GPUStats] = {}
-        self.queue: "mp.Queue[GPUStats]" | None = None
+        self._gpu_stats: Dict[int, GPUStats] = {}
+        self._gpu_stats_queue: "mp.Queue[GPUStats]" | None = None
 
         if shutil.which("nvidia-smi") is not None:
-            self.queue = mp.Queue()
-            proc = mp.Process(target=worker, args=(config, self.queue), daemon=True)
+            self._gpu_stats_queue = mp.Queue()
+            proc = mp.Process(target=worker, args=(config, self._gpu_stats_queue), daemon=True)
             proc.start()
 
             atexit.register(proc.kill)
@@ -112,10 +112,10 @@ class GPUStatsMixin(BaseTrainer[ConfigT]):
     ) -> None:
         super().on_step_start(state, train_batch, task, model, optim, lr_sched)
 
-        while self.queue is not None and not self.queue.empty():
-            gpu_stat: GPUStats = self.queue.get()
-            self.gpu_stats[gpu_stat.index] = gpu_stat
-        for gpu_stat in self.gpu_stats.values():
+        while self._gpu_stats_queue is not None and not self._gpu_stats_queue.empty():
+            gpu_stat: GPUStats = self._gpu_stats_queue.get()
+            self._gpu_stats[gpu_stat.index] = gpu_stat
+        for gpu_stat in self._gpu_stats.values():
             self.logger.log_scalar(f"gpu/{gpu_stat.index}/mem_used", gpu_stat.memory_used, namespace="trainer")
             self.logger.log_scalar(f"gpu/{gpu_stat.index}/temp", gpu_stat.temperature, namespace="trainer")
             self.logger.log_scalar(f"gpu/{gpu_stat.index}/gpu_util", gpu_stat.gpu_utilization, namespace="trainer")
