@@ -35,18 +35,20 @@ class CPUStats:
 
 
 def worker(config: ConfigT, queue: "mp.Queue[CPUStats]", pid: int) -> None:
-    proc = psutil.Process(pid)
-
     while True:
-        child_procs = list(proc.children(recursive=True))
-        cpu_stats = CPUStats(
-            cpu_percent=proc.cpu_percent(),
-            mem_percent=proc.memory_percent(),
-            max_child_cpu_percent=max(p.cpu_percent() for p in child_procs),
-            max_child_mem_percent=max(p.memory_percent() for p in child_procs),
-            num_child_procs=len(child_procs),
-        )
-        queue.put(cpu_stats)
+        try:
+            proc = psutil.Process(pid)
+            child_procs = list(proc.children(recursive=True))
+            cpu_stats = CPUStats(
+                cpu_percent=proc.cpu_percent(),
+                mem_percent=proc.memory_percent(),
+                max_child_cpu_percent=max(p.cpu_percent() for p in child_procs),
+                max_child_mem_percent=max(p.memory_percent() for p in child_procs),
+                num_child_procs=len(child_procs),
+            )
+            queue.put(cpu_stats)
+        except Exception:
+            logger.exception("Exception while getting CPU stats")
         time.sleep(config.ping_interval)
 
 
