@@ -50,8 +50,8 @@ def worker(config: CPUStatsConfigT, queue: "mp.Queue[CPUStats]", pid: int) -> No
                 num_child_procs=len(child_procs),
             )
             queue.put(cpu_stats)
-        except Exception:
-            logger.exception("Exception while getting CPU stats")
+        except psutil.NoSuchProcess:
+            logger.info("No parent process; probably cleaning up")
         time.sleep(config.ping_interval)
 
 
