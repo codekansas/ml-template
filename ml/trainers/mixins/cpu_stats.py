@@ -34,6 +34,7 @@ class CPUStats:
     mem_percent: float
     max_child_cpu_percent: float
     max_child_mem_percent: float
+    num_child_procs: int
 
 
 def worker(config: ConfigT, queue: "mp.Queue[CPUStats]", pid: int) -> None:
@@ -85,3 +86,4 @@ class CPUStatsMixin(BaseTrainer[ConfigT]):
             self.logger.log_scalar("cpu/max_child_percent", self._cpu_stats.max_child_cpu_percent, namespace="trainer")
             self.logger.log_scalar("mem/percent", self._cpu_stats.mem_percent, namespace="trainer")
             self.logger.log_scalar("mem/max_child_percent", self._cpu_stats.max_child_mem_percent, namespace="trainer")
+            self.logger.log_scalar("child_procs", self._cpu_stats.num_child_procs, namespace="trainer")
