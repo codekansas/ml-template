@@ -6,16 +6,17 @@ import torchvision
 from torch import Tensor
 from torch.utils.data.dataset import Dataset
 
-from ml import api
+import ml.api as M
+from ml.api import register_task
 
 
 @dataclass
-class CIFARDemoTaskConfig(api.BaseTaskConfig):
+class CIFARDemoTaskConfig(M.BaseTaskConfig):
     pass
 
 
-@api.register_task("cifar_demo", CIFARDemoTaskConfig)
-class CIFARDemoTask(api.BaseTask[CIFARDemoTaskConfig]):
+@register_task("cifar_demo", CIFARDemoTaskConfig)
+class CIFARDemoTask(M.BaseTask[CIFARDemoTaskConfig]):
     def __init__(self, config: CIFARDemoTaskConfig) -> None:
         super().__init__(config)
 
@@ -33,18 +34,18 @@ class CIFARDemoTask(api.BaseTask[CIFARDemoTaskConfig]):
 
     def run_model(
         self,
-        model: api.BaseModel,
+        model: M.BaseModel,
         batch: Tuple[Tensor, Tensor],
-        state: api.State,
+        state: M.State,
     ) -> Tensor:
         image, _ = batch
         return model(image)
 
     def compute_loss(
         self,
-        model: api.BaseModel,
+        model: M.BaseModel,
         batch: Tuple[Tensor, Tensor],
-        state: api.State,
+        state: M.State,
         output: Tensor,
     ) -> Tensor:
         (image, classes), preds = batch, output
@@ -63,9 +64,9 @@ class CIFARDemoTask(api.BaseTask[CIFARDemoTaskConfig]):
 
         return F.cross_entropy(preds, classes.flatten().long(), reduction="none")
 
-    def get_dataset(self, phase: api.Phase) -> Dataset:
+    def get_dataset(self, phase: M.Phase) -> Dataset:
         return torchvision.datasets.CIFAR10(
-            root=api.get_data_dir(),
+            root=M.get_data_dir(),
             train=phase == "train",
             download=True,
         )

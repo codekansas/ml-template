@@ -1,15 +1,14 @@
 import logging
 import shlex
 import sys
-from functools import partial
-from pathlib import Path
-from typing import Callable, Dict, List, Optional, Set, cast
+from typing import Callable, Dict
 
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 
-from ml.core.env import add_global_tag, get_global_tags, set_exp_name
+from ml.core.env import add_global_tag
 from ml.core.registry import Objects
-from ml.scripts import mp_train, stage, train
+from ml.scripts import compiler, mp_train, stage, train
+from ml.utils.cli import parse_cli
 from ml.utils.colors import colorize
 from ml.utils.distributed import get_rank_optional, get_world_size_optional
 from ml.utils.logging import configure_logging
@@ -17,103 +16,34 @@ from ml.utils.random import set_random_seed
 
 logger = logging.getLogger(__name__)
 
-IGNORE_ARGS: Set[str] = {
-    "trainer.exp_name",
-    "trainer.log_dir_name",
-    "trainer.base_run_dir",
-    "trainer.run_id",
-    "trainer.name",
-}
 
-
-def get_exp_name(prefix: Optional[str] = None, args: Optional[List[str]] = None) -> str:
-    parts: List[str] = []
-    if prefix is not None:
-        parts += [prefix]
-    if args is not None:
-        parts += args
-    if not parts:
-        parts = ["run"]
-    parts += get_global_tags()
-    return ".".join(p for p in parts if p)
-
-
-def parse_cli(args: List[str]) -> DictConfig:
-    """Parses the remaining command-line arguments to a raw config.
-
-    Args:
-        args: The raw command-line arguments to parse
-
-    Returns:
-        The raw config, loaded from the provided arguments
-    """
-
-    def show_help() -> None:
-        print("Usage: cmd <path/to/config.yaml> [<new_config.yaml>, ...] overrida.a=1 override.b=2", file=sys.stderr)
-        sys.exit(1)
-
-    if len(args) == 0 or "-h" in args or "--help" in args:
-        show_help()
-
-    # Builds the configs from the command-line arguments.
-    config = DictConfig({})
-    get_stem = lambda new_path: Path(new_path).stem
-    argument_parts: List[str] = []
-    paths: List[Path] = []
-
-    # Parses all of the config paths.
-    while len(args) > 0 and (args[0].endswith(".yaml") or args[0].endswith(".yml")):
-        paths, new_stem, args = paths + [Path(args[0])], get_stem(args[0]), args[1:]
-        argument_parts.append(new_stem)
-
-    # Parses all of the additional config overrides.
-    if len(args) > 0:
-        split_args = [a.split("=") for a in args]
-        assert all(len(a) == 2 for a in split_args), f"Got invalid arguments: {[a for a in split_args if len(a) != 2]}"
-        argument_parts += [f"{k.split('.')[-1]}_{v}" for k, v in sorted(split_args) if k not in IGNORE_ARGS]
-
-    # Registers an OmegaConf resolver with the job name.
-    if not OmegaConf.has_resolver("exp_name"):
-        OmegaConf.register_new_resolver("exp_name", partial(get_exp_name, args=argument_parts))
-    set_exp_name(get_exp_name(args=argument_parts))
-
-    # Finally, builds the config.
-    try:
-        for path in paths:
-            config = cast(DictConfig, OmegaConf.merge(config, OmegaConf.load(path)))
-        config = cast(DictConfig, OmegaConf.merge(config, OmegaConf.from_dotlist(args)))
-    except Exception:
-        logger.exception("Error while creating dotlist")
-        show_help()
-
-    return config
-
-
-def main() -> None:
+def cli_main() -> None:
     configure_logging(rank=get_rank_optional(), world_size=get_world_size_optional())
     logger.info("Command: %s", shlex.join(sys.argv))
 
     set_random_seed()
 
     without_objects_scripts: Dict[str, Callable[[DictConfig], None]] = {
-        "mp_train": mp_train.main,
-        "stage": stage.main,
+        "compile": compiler.compile_main,
+        "mp_train": mp_train.mp_train_main,
+        "stage": stage.stage_main,
     }
 
     with_objects_scripts: Dict[str, Callable[[Objects], None]] = {
-        "train": train.main,
+        "train": train.train_main,
     }
 
     scripts: Dict[str, Callable[..., None]] = {**with_objects_scripts, **without_objects_scripts}
 
     def show_help() -> None:
         script_names = (colorize(script_name, "cyan") for script_name in scripts)
-        print(f"Usage: tr < {' / '.join(script_names)} > ...\n", file=sys.stderr)
-        for key, func in scripts.items():
+        print(f"Usage: ml < {' / '.join(script_names)} > ...\n", file=sys.stderr)
+        for key, func in sorted(scripts.items()):
             if func.__doc__ is None:
-                print(f"* {colorize(key, 'green')}\n", file=sys.stderr)
+                print(f"* {colorize(key, 'green')}", file=sys.stderr)
             else:
-                print(f"* {colorize(key, 'green')}: {func.__doc__.strip()}\n", file=sys.stderr)
+                print(f"* {colorize(key, 'green')}: {func.__doc__.strip()}", file=sys.stderr)
+        print()
         sys.exit(1)
 
     # Parses the raw command line options.
@@ -143,4 +73,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    cli_main()

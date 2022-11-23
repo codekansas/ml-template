@@ -41,7 +41,7 @@ def conf_field(
         return field(default=value, metadata=metadata)
 
 
-ConfigT = TypeVar("ConfigT", bound="BaseConfig")
+BaseConfigT = TypeVar("BaseConfigT", bound="BaseConfig")
 
 
 @dataclass
@@ -51,7 +51,7 @@ class BaseConfig:
     name: str = conf_field(MISSING, short="n", help="The referenced name of the object to construct")
 
     @classmethod
-    def get_defaults(cls: Type[ConfigT]) -> Dict[str, ConfigT]:
+    def get_defaults(cls: Type[BaseConfigT]) -> Dict[str, BaseConfigT]:
         """Returns default configurations.
 
         Returns:
@@ -61,7 +61,7 @@ class BaseConfig:
         return {}
 
     @classmethod
-    def resolve(cls: Type[ConfigT], config: ConfigT) -> None:
+    def resolve(cls: Type[BaseConfigT], config: BaseConfigT) -> None:
         """Runs post-construction config resolution.
 
         Args:
@@ -69,17 +69,17 @@ class BaseConfig:
         """
 
 
-class BaseObject(Generic[ConfigT]):
+class BaseObject(Generic[BaseConfigT]):
     """Defines the base class for all objects."""
 
-    def __init__(self, config: ConfigT) -> None:
-        self.config: ConfigT = config
+    def __init__(self, config: BaseConfigT) -> None:
+        self.config: BaseConfigT = config
 
 
-class BaseObjectWithPointers(BaseObject[ConfigT], Generic[ConfigT]):
+class BaseObjectWithPointers(BaseObject[BaseConfigT], Generic[BaseConfigT]):
     """Defines the base class for all objects with pointers to other objects."""
 
-    def __init__(self, config: ConfigT) -> None:
+    def __init__(self, config: BaseConfigT) -> None:
         super().__init__(config)
 
         self._raw_config: Optional[DictConfig] = None

@@ -52,16 +52,16 @@ class ProfilerTrainerConfig(BaseTrainerConfig):
     profiler: Profiler = Profiler()
 
 
-ConfigT = TypeVar("ConfigT", bound=ProfilerTrainerConfig)
+ProfilerTrainerConfigT = TypeVar("ProfilerTrainerConfigT", bound=ProfilerTrainerConfig)
 
 
 class ProfilerTrainerMixin(
-    StepContextMixin[ConfigT],
-    BaseTrainer[ConfigT],
+    StepContextMixin[ProfilerTrainerConfigT],
+    BaseTrainer[ProfilerTrainerConfigT],
 ):
     """Defines a trainer mixin for enabling the PyTorch profiler."""
 
-    def __init__(self, config: ConfigT) -> None:
+    def __init__(self, config: ProfilerTrainerConfigT) -> None:
         super().__init__(config)
 
         self.step_times: Dict[StepType, float] = {}

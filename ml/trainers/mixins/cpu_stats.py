@@ -25,7 +25,7 @@ class CPUStatsConfig(BaseTrainerConfig):
     ping_interval: int = conf_field(1, help="How often to check stats (in seconds)")
 
 
-ConfigT = TypeVar("ConfigT", bound=CPUStatsConfig)
+CPUStatsConfigT = TypeVar("CPUStatsConfigT", bound=CPUStatsConfig)
 
 
 @dataclass(frozen=True)
@@ -37,7 +37,7 @@ class CPUStats:
     num_child_procs: int
 
 
-def worker(config: ConfigT, queue: "mp.Queue[CPUStats]", pid: int) -> None:
+def worker(config: CPUStatsConfigT, queue: "mp.Queue[CPUStats]", pid: int) -> None:
     while True:
         try:
             proc = psutil.Process(pid)
@@ -55,10 +55,10 @@ def worker(config: ConfigT, queue: "mp.Queue[CPUStats]", pid: int) -> None:
         time.sleep(config.ping_interval)
 
 
-class CPUStatsMixin(BaseTrainer[ConfigT]):
+class CPUStatsMixin(BaseTrainer[CPUStatsConfigT]):
     """Defines a trainer mixin for getting CPU statistics."""
 
-    def __init__(self, config: ConfigT) -> None:
+    def __init__(self, config: CPUStatsConfigT) -> None:
         super().__init__(config)
 
         self._cpu_stats: Optional[CPUStats] = None

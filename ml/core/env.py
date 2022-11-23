@@ -129,8 +129,8 @@ set_model_dir = ModelDir.set
 
 # The global random seed.
 RandomSeed = _IntEnvVar("RANDOM_SEED", default=1337)
-get_random_seed = RandomSeed.get
-set_random_seed = RandomSeed.set
+get_env_random_seed = RandomSeed.get
+set_env_random_seed = RandomSeed.set
 
 # Directory where code is staged before running large-scale experiments.
 StageDir = _PathEnvVar("STAGE_DIR")

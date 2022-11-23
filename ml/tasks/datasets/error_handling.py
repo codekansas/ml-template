@@ -13,7 +13,7 @@ from ml.core.config import conf_field
 
 logger = logging.getLogger(__name__)
 
-Batch = TypeVar("Batch")
+BatchT = TypeVar("BatchT")
 
 
 @dataclass
@@ -93,13 +93,13 @@ class ExceptionSummary:
         self.total_exceptions = 0
 
 
-class ErrorHandlingDataset(Dataset[Batch]):
+class ErrorHandlingDataset(Dataset[BatchT]):
     """Defines a wrapper for safely handling errors."""
 
-    dataset: Dataset[Batch]
+    dataset: Dataset[BatchT]
     config: ErrorHandlingConfig
 
-    def __init__(self, dataset: Dataset[Batch], config: ErrorHandlingConfig) -> None:
+    def __init__(self, dataset: Dataset[BatchT], config: ErrorHandlingConfig) -> None:
         super().__init__()
 
         self.dataset = dataset
@@ -109,7 +109,7 @@ class ErrorHandlingDataset(Dataset[Batch]):
             summary_length=config.report_top_n_exception_types,
         )
 
-    def __getitem__(self, index: int) -> Batch:
+    def __getitem__(self, index: int) -> BatchT:
         num_exceptions = 0
         backoff_time = self.config.sleep_backoff
         self.exc_summary.step()
@@ -144,13 +144,13 @@ class ErrorHandlingDataset(Dataset[Batch]):
         raise NotImplementedError("Base dataset doesn't implemenet `__len__`")
 
 
-class ErrorHandlingIterableDataset(IterableDataset[Batch]):
+class ErrorHandlingIterableDataset(IterableDataset[BatchT]):
     """Defines a wrapper for safely handling errors in iterable datasets."""
 
-    dataset: IterableDataset[Batch]
-    iter: Iterator[Batch]
+    dataset: IterableDataset[BatchT]
+    iter: Iterator[BatchT]
 
-    def __init__(self, dataset: IterableDataset[Batch], config: ErrorHandlingConfig) -> None:
+    def __init__(self, dataset: IterableDataset[BatchT], config: ErrorHandlingConfig) -> None:
         super().__init__()
 
         self.iteration = 0
@@ -163,12 +163,12 @@ class ErrorHandlingIterableDataset(IterableDataset[Batch]):
 
         self._configured_logging = False
 
-    def __iter__(self) -> Iterator[Batch]:
+    def __iter__(self) -> Iterator[BatchT]:
         self.iter = self.dataset.__iter__()
         self.iteration = 0
         return self
 
-    def __next__(self) -> Batch:
+    def __next__(self) -> BatchT:
         num_exceptions = 0
         backoff_time = self.config.sleep_backoff
         self.exc_summary.step()
@@ -197,7 +197,7 @@ class ErrorHandlingIterableDataset(IterableDataset[Batch]):
         raise RuntimeError(f"Reached max exceptions {self.config.maximum_exceptions}\n{self.exc_summary.summary()}")
 
 
-def get_error_handling_dataset(dataset: Dataset[Batch], config: ErrorHandlingConfig) -> Dataset[Batch]:
+def get_error_handling_dataset(dataset: Dataset[BatchT], config: ErrorHandlingConfig) -> Dataset[BatchT]:
     """Returns a dataset which wraps the base dataset and handles errors.
 
     Args:

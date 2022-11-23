@@ -25,7 +25,7 @@ from torch.utils.data.dataloader import (
 from ml.core.types import Batch
 from ml.utils.timer import Timer
 
-BatchType = TypeVar("BatchType", bound=Batch)  # pylint: disable=invalid-name
+DeviceBatchT = TypeVar("DeviceBatchT", bound=Batch)  # pylint: disable=invalid-name
 
 
 def get_tasks_outstanding(dataloader_iter: _BaseDataLoaderIter) -> int:
@@ -37,7 +37,7 @@ def get_tasks_outstanding(dataloader_iter: _BaseDataLoaderIter) -> int:
     return -1
 
 
-class Prefetcher(Iterator[BatchType]):
+class Prefetcher(Iterator[DeviceBatchT]):
     """Helper class for pre-loading samples into device memory."""
 
     dataloader_iter: _BaseDataLoaderIter
@@ -118,7 +118,7 @@ class Prefetcher(Iterator[BatchType]):
         self.prefetch()
         return self
 
-    def __next__(self) -> BatchType:
+    def __next__(self) -> DeviceBatchT:
         with Timer("getting batch") as timer:
             if self.next_sample is None:
                 raise StopIteration
@@ -133,20 +133,20 @@ class Prefetcher(Iterator[BatchType]):
         return sample
 
 
-class InfinitePrefetcher(Iterator[BatchType]):
-    def __init__(self, prefetcher: Prefetcher[BatchType]) -> None:
+class InfinitePrefetcher(Iterator[DeviceBatchT]):
+    def __init__(self, prefetcher: Prefetcher[DeviceBatchT]) -> None:
         self.prefetcher = prefetcher
 
     @functools.lru_cache()
-    def iter_func(self) -> Iterator[BatchType]:
+    def iter_func(self) -> Iterator[DeviceBatchT]:
         while True:
             for batch in self.prefetcher:
                 yield batch
 
-    def __iter__(self) -> Iterator[BatchType]:
+    def __iter__(self) -> Iterator[DeviceBatchT]:
         return self.iter_func()
 
-    def __next__(self) -> BatchType:
+    def __next__(self) -> DeviceBatchT:
         return next(self.iter_func())
 
 

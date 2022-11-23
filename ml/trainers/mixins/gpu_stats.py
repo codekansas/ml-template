@@ -4,7 +4,7 @@ import multiprocessing as mp
 import os
 import re
 import shutil
-import subprocess as sp
+import subprocess
 from dataclasses import dataclass
 from typing import Dict, Iterable, TypeVar
 
@@ -26,7 +26,7 @@ class GPUStatsConfig(BaseTrainerConfig):
     ping_interval: int = conf_field(1, help="How often to check stats (in seconds)")
 
 
-ConfigT = TypeVar("ConfigT", bound=GPUStatsConfig)
+GPUStatsConfigT = TypeVar("GPUStatsConfigT", bound=GPUStatsConfig)
 
 NUMBER_REGEX = re.compile(r"[\d\.]+")
 
@@ -65,7 +65,7 @@ def gen_gpu_stats(loop_secs: int = 5) -> Iterable[GPUStats]:
     visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
     visible_device_ids = None if visible_devices is None else {int(i.strip()) for i in visible_devices.split(",")}
     try:
-        with sp.Popen(command.split(), stdout=sp.PIPE, universal_newlines=True) as proc:
+        with subprocess.Popen(command.split(), stdout=subprocess.PIPE, universal_newlines=True) as proc:
             stdout = proc.stdout
             assert stdout is not None
             rows = iter(stdout.readline, "")
@@ -76,19 +76,19 @@ def gen_gpu_stats(loop_secs: int = 5) -> Iterable[GPUStats]:
                     continue
                 if visible_device_ids is None or stats.index in visible_device_ids:
                     yield stats
-    except sp.CalledProcessError:
+    except subprocess.CalledProcessError:
         logger.exception("Caught exception while trying to query `nvidia-smi`")
 
 
-def worker(config: ConfigT, queue: "mp.Queue[GPUStats]") -> None:
+def worker(config: GPUStatsConfigT, queue: "mp.Queue[GPUStats]") -> None:
     for gpu_stat in gen_gpu_stats(config.ping_interval):
         queue.put(gpu_stat)
 
 
-class GPUStatsMixin(BaseTrainer[ConfigT]):
+class GPUStatsMixin(BaseTrainer[GPUStatsConfigT]):
     """Defines a trainer mixin for getting GPU statistics."""
 
-    def __init__(self, config: ConfigT) -> None:
+    def __init__(self, config: GPUStatsConfigT) -> None:
         super().__init__(config)
 
         self._gpu_stats: Dict[int, GPUStats] = {}

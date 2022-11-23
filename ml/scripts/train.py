@@ -6,12 +6,8 @@ from ml.utils.timer import Timer
 logger = logging.getLogger(__name__)
 
 
-def main(objs: Objects) -> None:
-    """Runs the training loop.
-
-    Args:
-        objs: The parsed objects
-    """
+def train_main(objs: Objects) -> None:
+    """Runs the training loop."""  # noqa
 
     # Checks that the config has the right keys for training.
     assert (model := objs.model) is not None
@@ -23,7 +19,3 @@ def main(objs: Objects) -> None:
     # Runs the training loop.
     with Timer("running training loop"):
         trainer.train(model, task, optimizer, lr_scheduler)
-
-
-if __name__ == "__main__":
-    raise RuntimeError("Don't run this script directly; run `cli.py train ...` instead")

@@ -7,12 +7,8 @@ from ml.core.registry import stage_environment
 logger = logging.getLogger(__name__)
 
 
-def main(config: DictConfig) -> None:
-    """Stages the current configuration.
-
-    Args:
-        config: The raw config
-    """
+def stage_main(config: DictConfig) -> None:
+    """Stages the current configuration."""  # noqa
 
     # Stages the currently-imported files.
     out_dir = stage_environment()
@@ -25,7 +21,3 @@ def main(config: DictConfig) -> None:
     config_path = config_dir / f"config_{config_id}.yaml"
     OmegaConf.save(config, config_path)
     logger.info("Staged config to %s", config_path)
-
-
-if __name__ == "__main__":
-    raise RuntimeError("Don't run this script directly; run `cli.py stage ...` instead")

@@ -23,13 +23,13 @@ class MixedPrecisionTrainerConfig(BaseTrainerConfig):
     fp16: FP16 = FP16()
 
 
-ConfigT = TypeVar("ConfigT", bound=MixedPrecisionTrainerConfig)
+MixedPrecisionConfigT = TypeVar("MixedPrecisionConfigT", bound=MixedPrecisionTrainerConfig)
 
 
-class MixedPrecisionTrainerMixin(BaseTrainer[ConfigT]):
+class MixedPrecisionTrainerMixin(BaseTrainer[MixedPrecisionConfigT]):
     """Defines a trainer mixin for doing FP16 scaling."""
 
-    def __init__(self, config: ConfigT) -> None:
+    def __init__(self, config: MixedPrecisionConfigT) -> None:
         super().__init__(config)
 
         self.grad_scaler: torch.cuda.amp.GradScaler | None

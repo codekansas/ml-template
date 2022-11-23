@@ -271,11 +271,34 @@ class register_base(ABC, Generic[Entry, Config]):  # pylint: disable=invalid-nam
             cls.load_registry_locations()
             cls.populate_registry(name)
             cls.save_registry_locations()
-        if name not in cls.REGISTRY:
-            options = "\n".join(f" - {k}" for k in sorted(cls.REGISTRY.keys()))
-            logger.error("Couldn't locate %s '%s' in:\n%s", cls.config_key(), name, options)
-            raise KeyError(f"Couldn't locate {cls.config_key()} '{name}' from {len(cls.REGISTRY)} options")
-        return cls.REGISTRY[name]
+        if name in cls.REGISTRY:
+            return cls.REGISTRY[name]
+
+        options = "\n".join(f" - {k}" for k in sorted(cls.REGISTRY.keys()))
+        logger.error("Couldn't locate %s '%s' in:\n%s", cls.config_key(), name, options)
+        raise KeyError(f"Couldn't locate {cls.config_key()} '{name}' from {len(cls.REGISTRY)} options")
+
+    @classmethod
+    def lookup_path(cls, name: str) -> Path:
+        if name in cls.REGISTRY_LOCATIONS:
+            return cls.REGISTRY_LOCATIONS[name]
+
+        # If the registry locations haven't been loaded, load them, then
+        # check again.
+        cls.load_registry_locations()
+        if name in cls.REGISTRY_LOCATIONS:
+            return cls.REGISTRY_LOCATIONS[name]
+
+        # If the file location. has not been cached, search for it, then
+        # cache it for future fast lookup.
+        cls.populate_registry(name)
+        cls.save_registry_locations()
+        if name in cls.REGISTRY_LOCATIONS:
+            return cls.REGISTRY_LOCATIONS[name]
+
+        options = "\n".join(f" - {k}" for k in sorted(cls.REGISTRY_LOCATIONS.keys()))
+        logger.error("Couldn't locate %s '%s' in:\n%s", cls.config_key(), name, options)
+        raise KeyError(f"Couldn't locate {cls.config_key()} '{name}' from {len(cls.REGISTRY_LOCATIONS)} options")
 
     @classmethod
     def build_entry(cls, raw_config: DictConfig) -> Entry | None:

@@ -8,7 +8,7 @@ from typing import Any, Callable, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
 
-F = TypeVar("F", bound=Callable[..., Any])
+TimeoutFunc = TypeVar("TimeoutFunc", bound=Callable[..., Any])
 
 
 class Timer:
@@ -36,7 +36,7 @@ class Timer:
             logger.warning("Finished %s in %.3g seconds", self.description, self._elapsed_time)
 
 
-def timeout(seconds: int, error_message: str = os.strerror(errno.ETIME)) -> Callable[[F], F]:
+def timeout(seconds: int, error_message: str = os.strerror(errno.ETIME)) -> Callable[[TimeoutFunc], TimeoutFunc]:
     """Decorator for timing out long-running functions.
 
     Note that this function won't work on Windows.

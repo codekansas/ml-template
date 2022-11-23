@@ -4,7 +4,7 @@ from typing import Any, Callable, List, Literal
 import numpy as np
 import torch
 import torchvision.transforms.functional as V
-from PIL.Image import Image
+from PIL.Image import Image as PILImage
 from torch import Tensor
 
 CollateMode = Literal["stack", "concat"]
@@ -149,7 +149,7 @@ def collate(
         return collate([torch.from_numpy(i) for i in items], mode=mode, pad=pad)
 
     # All images are converted to tensors.
-    if isinstance(item, Image):
+    if isinstance(item, PILImage):
         return collate([V.to_tensor(i) for i in items], mode=mode, pad=pad)
 
     # Numbers are converted to a list of tensors.
