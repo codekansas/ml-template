@@ -57,7 +57,7 @@ def timeout(seconds: int, error_message: str = os.strerror(errno.ETIME)) -> Call
         Decorator function
     """
 
-    def decorator(func: F) -> F:
+    def decorator(func: TimeoutFunc) -> TimeoutFunc:
         def _handle_timeout(*_: Any) -> None:
             raise TimeoutError(error_message)
 
