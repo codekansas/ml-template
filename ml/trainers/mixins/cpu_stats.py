@@ -38,15 +38,22 @@ class CPUStats:
 
 
 def worker(config: CPUStatsConfigT, queue: "mp.Queue[CPUStats]", pid: int) -> None:
+    proc = psutil.Process(pid)
+    child_procs = {p.pid: p for p in proc.children(recursive=True)}
     while True:
         try:
-            proc = psutil.Process(pid)
-            child_procs = list(proc.children(recursive=True))
+            # Updates child processes, preserving the previous child process
+            # object. Otherwise the CPU percentage will be zero.
+            new_children = {p.pid: p for p in proc.children(recursive=True) if p.pid not in child_procs}
+            child_procs = {k: v for k, v in child_procs.items() if k in new_children}
+            child_procs.update(new_children)
+
+            # Gets the CPU statistics.
             cpu_stats = CPUStats(
                 cpu_percent=proc.cpu_percent(),
                 mem_percent=proc.memory_percent(),
-                max_child_cpu_percent=max(p.cpu_percent() for p in child_procs),
-                max_child_mem_percent=max(p.memory_percent() for p in child_procs),
+                max_child_cpu_percent=max(p.cpu_percent() for p in child_procs.values()),
+                max_child_mem_percent=max(p.memory_percent() for p in child_procs.values()),
                 num_child_procs=len(child_procs),
             )
             queue.put(cpu_stats)
