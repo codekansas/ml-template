@@ -52,8 +52,8 @@ def worker(config: CPUStatsConfigT, queue: "mp.Queue[CPUStats]", pid: int) -> No
             cpu_stats = CPUStats(
                 cpu_percent=proc.cpu_percent(),
                 mem_percent=proc.memory_percent(),
-                max_child_cpu_percent=max(p.cpu_percent() for p in child_procs.values()),
-                max_child_mem_percent=max(p.memory_percent() for p in child_procs.values()),
+                max_child_cpu_percent=max(p.cpu_percent() for p in child_procs.values()) if child_procs else 0.0,
+                max_child_mem_percent=max(p.memory_percent() for p in child_procs.values()) if child_procs else 0.0,
                 num_child_procs=len(child_procs),
             )
             queue.put(cpu_stats)
