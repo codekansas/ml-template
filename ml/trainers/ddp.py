@@ -35,7 +35,7 @@ from torch import nn
 from ml.core.env import get_distributed_backend
 from ml.core.registry import Objects, register_trainer
 from ml.models.base import BaseModel
-from ml.scripts.train import train_main as train_main
+from ml.scripts.train import train_main
 from ml.tasks.base import BaseTask
 from ml.trainers.base import MultiprocessConfig
 from ml.trainers.vanilla import VanillaTrainer, VanillaTrainerConfig

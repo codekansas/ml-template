@@ -36,7 +36,7 @@ from ml.core.registry import Objects, register_trainer, stage_environment
 from ml.core.state import State
 from ml.lr_schedulers.base import SchedulerAdapter
 from ml.models.base import BaseModel
-from ml.scripts.train import main as train_main
+from ml.scripts.train import train_main
 from ml.tasks.base import BaseTask
 from ml.trainers.vanilla import VanillaTrainer, VanillaTrainerConfig
 from ml.utils.distributed import (
