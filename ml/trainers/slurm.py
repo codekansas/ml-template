@@ -42,7 +42,7 @@ from ml.trainers.vanilla import VanillaTrainer, VanillaTrainerConfig
 from ml.utils.distributed import (
     get_master_addr,
     get_master_port,
-    get_world_size,g
+    get_world_size,
     init_process_group,
     is_master,
     set_init_method,
