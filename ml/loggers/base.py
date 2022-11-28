@@ -23,6 +23,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torchvision.transforms.functional as V
+from omegaconf import DictConfig
 from PIL import Image, ImageDraw, ImageFont
 from torch import Tensor
 from torchvision.transforms import InterpolationMode
@@ -150,6 +151,9 @@ class BaseLogger(BaseObjectWithPointers[LoggerConfigT], Generic[LoggerConfigT], 
         else:
             self.last_write_time[state.phase] = current_time
             return True
+
+    def log_config(self, config: DictConfig) -> None:
+        pass
 
     @abstractmethod
     def write(self, state: State) -> None:
@@ -569,6 +573,8 @@ class MultiLogger:
     """Defines an intermediate container which holds values to log somewhere else."""
 
     def __init__(self, default_namespace: str = DEFAULT_NAMESPACE) -> None:
+        self.config: DictConfig | None = None
+        self.has_logged_config = False
         self.scalars: Dict[str, Dict[str, Callable[[], Number]]] = defaultdict(dict)
         self.strings: Dict[str, Dict[str, Callable[[], str]]] = defaultdict(dict)
         self.images: Dict[str, Dict[str, Callable[[], Tensor]]] = defaultdict(dict)
@@ -930,6 +936,11 @@ class MultiLogger:
                     func(logger)(key, log_value, state, namespace)
         values.clear()
 
+    def log_config(self, config: DictConfig) -> None:
+        if self.config is not None:
+            raise RuntimeError("Config has already been logged; don't log it twice")
+        self.config = config
+
     def write(self, loggers: List[BaseLogger], state: State) -> None:
         self.write_dict(loggers, self.scalars, state, lambda logger: logger.log_scalar)
         self.write_dict(loggers, self.strings, state, lambda logger: logger.log_string)
@@ -937,3 +948,7 @@ class MultiLogger:
         self.write_dict(loggers, self.videos, state, lambda logger: logger.log_video)
         self.write_dict(loggers, self.histograms, state, lambda logger: logger.log_histogram)
         self.write_dict(loggers, self.point_clouds, state, lambda logger: logger.log_point_cloud)
+        if self.config is not None and not self.has_logged_config:
+            for logger in loggers:
+                logger.log_config(self.config)
+            self.has_logged_config = True

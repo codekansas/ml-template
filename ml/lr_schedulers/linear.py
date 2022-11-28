@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Dict
 
 from omegaconf import II, MISSING, OmegaConf
 
@@ -15,13 +14,6 @@ class LinearLRSchedulerConfig(BaseLRSchedulerConfig):
     total_steps: int = conf_field(II("task.finished.max_steps"), help="Total number of steps to run")
     warmup_percent: float = conf_field(0.01, help="Percentage of total steps to use as warmup steps, if not specified")
     min_scale: float = conf_field(1e-4, help="Minimum learning rate scale")
-
-    @classmethod
-    def get_defaults(cls) -> Dict[str, "LinearLRSchedulerConfig"]:
-        return {
-            "linear_100k": LinearLRSchedulerConfig(total_steps=100_000),
-            "linear_500k": LinearLRSchedulerConfig(total_steps=500_000),
-        }
 
     @classmethod
     def resolve(cls, config: "LinearLRSchedulerConfig") -> None:

@@ -229,6 +229,9 @@ class VanillaTrainer(
         if is_master():
             self.add_lock_file("running")
 
+        # Logs the training config.
+        self.logger.log_config(self.raw_config)
+
         # Sets up environment.
         if self.config.deterministic:
             torch.use_deterministic_algorithms(True)
