@@ -26,7 +26,7 @@ class LinearLRSchedulerConfig(BaseLRSchedulerConfig):
 class LinearLRScheduler(BaseLRScheduler[LinearLRSchedulerConfig]):
     def get_lr_scale(self, state: State) -> float:
         if state.num_steps < self.config.warmup_steps:
-            return max(self.config.min_scale, state.num_steps / self.config.warmup_steps)
+            return state.num_steps / self.config.warmup_steps
         if state.num_steps < self.config.total_steps:
             return max(
                 self.config.min_scale,

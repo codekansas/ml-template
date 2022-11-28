@@ -33,6 +33,6 @@ class CosineLRScheduler(BaseLRScheduler[CosineLRSchedulerConfig]):
         eta_min, eta_max = self.config.eta_min, self.config.eta_max
         phase_steps = state.num_steps % (self.config.phase + self.config.ramp_up_steps)
         if phase_steps < self.config.ramp_up_steps:
-            return max(phase_steps / self.config.ramp_up_steps, eta_min)
+            return phase_steps / self.config.ramp_up_steps
         sigma = (phase_steps - self.config.ramp_up_steps) / self.config.phase
         return eta_min + (eta_max - eta_min) * (1 + math.cos(math.pi * sigma)) / 2

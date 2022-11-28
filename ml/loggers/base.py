@@ -23,7 +23,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torchvision.transforms.functional as V
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf, SCMode
 from PIL import Image, ImageDraw, ImageFont
 from torch import Tensor
 from torchvision.transforms import InterpolationMode
@@ -37,6 +37,41 @@ Number = Union[int, float, Tensor]
 DEFAULT_NAMESPACE = "value"
 VALID_CHANNEL_COUNTS = {1, 3}
 TARGET_FPS = 12
+
+
+def flatten(d: Dict[str, Any] | List[Any] | Tuple[Any, ...]) -> Dict[str, int | float | str | bool]:
+    out_dict: Dict[str, int | float | str | bool] = {}
+
+    # Flattens dictionaries.
+    if isinstance(d, dict):
+        for k, v in d.items():
+            if isinstance(v, (int, float, str, bool)):
+                out_dict[k] = v
+            elif isinstance(v, (dict, list, tuple)):
+                for kk, vv in flatten(v).items():
+                    out_dict[f"{k}.{kk}"] = vv
+            elif v is None:
+                pass
+            else:
+                raise NotImplementedError(f"Unsupported value type {type(v)}")
+
+    # Flattens lists and tuples.
+    elif isinstance(d, (list, tuple)):
+        for i, v in enumerate(d):
+            if isinstance(v, (int, float, str, bool)):
+                out_dict[f"{i}"] = v
+            elif isinstance(v, (dict, list, tuple)):
+                for kk, vv in flatten(v).items():
+                    out_dict[f"{i}.{kk}"] = vv
+            elif v is None:
+                pass
+            else:
+                raise NotImplementedError(f"Unsupported value type {type(v)}")
+
+    else:
+        raise NotImplementedError(f"Unsupported top-level type: {type(v)}")
+
+    return out_dict
 
 
 @dataclass
@@ -126,6 +161,16 @@ class BaseLogger(BaseObjectWithPointers[LoggerConfigT], Generic[LoggerConfigT], 
             namespace: The namespace to be logged
         """
 
+    def log_config(self, config: Dict[str, int | float | str | bool], metrics: Dict[str, int | float]) -> None:
+        """Logs a set of metrics and configuration.
+
+        This is only called once, when metrics are computed for a whole dataset.
+
+        Args:
+            config: The run config
+            metrics: Dictionary of metrics
+        """
+
     def should_write(self, state: State) -> bool:
         """Returns whether or not the current state should be written.
 
@@ -151,9 +196,6 @@ class BaseLogger(BaseObjectWithPointers[LoggerConfigT], Generic[LoggerConfigT], 
         else:
             self.last_write_time[state.phase] = current_time
             return True
-
-    def log_config(self, config: DictConfig) -> None:
-        pass
 
     @abstractmethod
     def write(self, state: State) -> None:
@@ -573,7 +615,7 @@ class MultiLogger:
     """Defines an intermediate container which holds values to log somewhere else."""
 
     def __init__(self, default_namespace: str = DEFAULT_NAMESPACE) -> None:
-        self.config: DictConfig | None = None
+        self.config: Tuple[DictConfig, Dict[str, int | float]] | None = None
         self.has_logged_config = False
         self.scalars: Dict[str, Dict[str, Callable[[], Number]]] = defaultdict(dict)
         self.strings: Dict[str, Dict[str, Callable[[], str]]] = defaultdict(dict)
@@ -936,10 +978,10 @@ class MultiLogger:
                     func(logger)(key, log_value, state, namespace)
         values.clear()
 
-    def log_config(self, config: DictConfig) -> None:
+    def log_config(self, config: DictConfig, metrics: Dict[str, int | float]) -> None:
         if self.config is not None:
             raise RuntimeError("Config has already been logged; don't log it twice")
-        self.config = config
+        self.config = (config, metrics)
 
     def write(self, loggers: List[BaseLogger], state: State) -> None:
         self.write_dict(loggers, self.scalars, state, lambda logger: logger.log_scalar)
@@ -948,7 +990,18 @@ class MultiLogger:
         self.write_dict(loggers, self.videos, state, lambda logger: logger.log_video)
         self.write_dict(loggers, self.histograms, state, lambda logger: logger.log_histogram)
         self.write_dict(loggers, self.point_clouds, state, lambda logger: logger.log_point_cloud)
+
+        # Only writes the config once.
         if self.config is not None and not self.has_logged_config:
+            raw_config, metrics = self.config
+            raw_config_dict = OmegaConf.to_container(
+                cfg=raw_config,
+                resolve=True,
+                throw_on_missing=False,
+                enum_to_str=True,
+                structured_config_mode=SCMode.DICT,
+            )
+            config_dict = flatten(raw_config_dict)  # type: ignore
             for logger in loggers:
-                logger.log_config(self.config)
+                logger.log_config(config_dict, metrics)
             self.has_logged_config = True
