@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from torch import Tensor
 
@@ -41,7 +41,21 @@ class MeterLogger(BaseLogger[MeterLoggerConfig]):
     def log_scalar(self, key: str, value: Callable[[], int | float | Tensor], state: State, namespace: str) -> None:
         self.get_meter(state, key, namespace).add(get_value(value()))
 
+    def iter_meters(self) -> Iterable[Meter]:
+        for v in self.meters.values():
+            for vv in v.values():
+                for vvv in vv.values():
+                    yield vvv
+
     def get_value_dict(self) -> Dict[str, int | float]:
+        # First, reduces the meters.
+        works: List[Any] = []
+        for meter in self.iter_meters():
+            works.extend(meter.reduce())
+        for work in works:
+            work.wait()
+
+        # Next, builds the output dictionaries.
         out_dict: Dict[str, int | float] = {}
         for phase, phase_meters in self.meters.items():
             for namespace, namespace_meters in phase_meters.items():
