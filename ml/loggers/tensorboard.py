@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Callable, Dict, List
 
 import torch
-from omegaconf import MISSING, DictConfig, OmegaConf, SCMode
+from omegaconf import MISSING, OmegaConf
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
 
@@ -179,15 +179,8 @@ class TensorboardLogger(BaseLogger[TensorboardLoggerConfig]):
     def log_point_cloud(self, key: str, value: Callable[[], Tensor], state: State, namespace: str) -> None:
         self.point_clouds[state.phase][f"{namespace}/{key}"] = value
 
-    def log_config(self, config: DictConfig) -> None:
-        conf_dict = OmegaConf.to_container(
-            cfg=config,
-            resolve=True,
-            throw_on_missing=False,
-            enum_to_str=True,
-            structured_config_mode=SCMode.DICT,
-        )
-        self.train_writer.add_hparams(conf_dict, {})
+    def log_config(self, config: Dict[str, int | float | str | bool], metrics: Dict[str, int | float]) -> None:
+        self.test_writer.add_hparams(config, metrics, run_name=get_exp_name())
 
     def write(self, state: State) -> None:
         if self.line_str is not None:
