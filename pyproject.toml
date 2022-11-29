@@ -16,6 +16,10 @@ combine_as_imports = true
 addopts = "-rx -rf -x -q --full-trace"
 testpaths = ["tests"]
 
+markers = [
+    "has_gpu: Marks test as requiring a GPU to run",
+]
+
 [tool.pylint.general]
 
 jobs = 2
