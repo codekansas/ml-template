@@ -64,7 +64,7 @@ def worker(config: CPUStatsConfigT, queue: "mp.Queue[CPUStats]", pid: int) -> No
                 mem_percent=proc.memory_percent(),
                 mem_rss=mem_info.rss,
                 mem_vms=mem_info.vms,
-                mem_shared=mem_info.shared,
+                mem_shared=getattr(mem_info, "shared", 0.0),
                 mem_rss_total=mem_rss_total,
                 mem_vms_total=mem_vms_total,
                 max_child_cpu_percent=max(p.cpu_percent() for p in child_procs.values()) if child_procs else 0.0,

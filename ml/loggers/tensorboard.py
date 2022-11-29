@@ -20,7 +20,8 @@ from ml.core.config import conf_field
 from ml.core.env import get_exp_name
 from ml.core.registry import register_logger
 from ml.core.state import Phase, State
-from ml.loggers.base import TARGET_FPS, BaseLogger, BaseLoggerConfig
+from ml.loggers.base import BaseLogger, BaseLoggerConfig
+from ml.loggers.multi import TARGET_FPS
 from ml.utils.distributed import is_distributed, is_master
 from ml.utils.networking import get_unused_port
 

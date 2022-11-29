@@ -6,7 +6,7 @@ import torch
 from torch import Tensor, nn
 
 from ml.core.config import BaseConfig, BaseObject
-from ml.loggers.base import MultiLogger
+from ml.loggers.multi import MultiLogger
 from ml.utils.colors import colorize
 
 logger = logging.getLogger(__name__)

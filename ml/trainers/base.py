@@ -28,7 +28,8 @@ from torch.optim.optimizer import Optimizer
 from ml.core.config import BaseConfig, BaseObjectWithPointers, conf_field
 from ml.core.state import State
 from ml.core.types import Batch
-from ml.loggers.base import BaseLogger, MultiLogger
+from ml.loggers.base import BaseLogger
+from ml.loggers.multi import MultiLogger
 from ml.lr_schedulers.base import BaseLRScheduler, SchedulerAdapter
 from ml.models.base import BaseModel
 from ml.optimizers.base import BaseOptimizer

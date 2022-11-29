@@ -33,7 +33,7 @@ from ml.core.config import BaseConfig, BaseObjectWithPointers, conf_field
 from ml.core.env import is_debugging
 from ml.core.state import Phase, State, cast_phase
 from ml.core.types import Batch, Loss, Output
-from ml.loggers.base import MultiLogger
+from ml.loggers.multi import MultiLogger
 from ml.lr_schedulers.base import SchedulerAdapter
 from ml.models.base import BaseModel
 from ml.tasks.datasets.collate import CollateMode, collate
