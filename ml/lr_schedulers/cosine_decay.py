@@ -18,6 +18,7 @@ class CosineDecayLRSchedulerConfig(BaseLRSchedulerConfig):
     ramp_up_steps: int = conf_field(MISSING, help="Number of steps to spend ramping up")
     eta_min: float = conf_field(0.01, help="Minimum learning rate scale")
     eta_max: float = conf_field(1.0, help="Maximum learning rate scale")
+    min_decay: float = conf_field(1e-4, help="Minimum learning rate decay")
 
     @classmethod
     def resolve(cls, config: "CosineDecayLRSchedulerConfig") -> None:
@@ -34,11 +35,12 @@ class CosineDecayLRSchedulerConfig(BaseLRSchedulerConfig):
 @register_lr_scheduler("cosine_decay", CosineDecayLRSchedulerConfig)
 class CosineDecayLRScheduler(BaseLRScheduler[CosineDecayLRSchedulerConfig]):
     def get_lr_scale(self, state: State) -> float:
-        eta_min, eta_max = self.config.eta_min, self.config.eta_max
-        decay = (self.config.total_steps - state.num_steps) / self.config.total_steps
-        phase_steps = state.num_steps % (self.config.phase + self.config.ramp_up_steps)
-        if phase_steps < self.config.ramp_up_steps:
-            return max(phase_steps / self.config.ramp_up_steps, eta_min) * decay
-        sigma = (phase_steps - self.config.ramp_up_steps) / self.config.phase
+        phase, total, ramp_up = self.config.phase, self.config.total_steps, self.config.ramp_up_steps
+        eta_min, eta_max, min_decay = self.config.eta_min, self.config.eta_max, self.config.min_decay
+        decay = (1.0 - min_decay) * (total - state.num_steps) / total + min_decay
+        phase_steps = state.num_steps % (phase + ramp_up)
+        if phase_steps < ramp_up:
+            return max(phase_steps / ramp_up, eta_min) * decay
+        sigma = (phase_steps - ramp_up) / phase
         lr_scale_no_decay = eta_min + (eta_max - eta_min) * (1 + math.cos(math.pi * sigma)) / 2
         return lr_scale_no_decay * decay

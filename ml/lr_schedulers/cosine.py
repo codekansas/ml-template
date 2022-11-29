@@ -30,9 +30,10 @@ class CosineLRSchedulerConfig(BaseLRSchedulerConfig):
 @register_lr_scheduler("cosine", CosineLRSchedulerConfig)
 class CosineLRScheduler(BaseLRScheduler[CosineLRSchedulerConfig]):
     def get_lr_scale(self, state: State) -> float:
+        phase, ramp_up = self.config.phase, self.config.ramp_up_steps
         eta_min, eta_max = self.config.eta_min, self.config.eta_max
-        phase_steps = state.num_steps % (self.config.phase + self.config.ramp_up_steps)
-        if phase_steps < self.config.ramp_up_steps:
-            return phase_steps / self.config.ramp_up_steps
-        sigma = (phase_steps - self.config.ramp_up_steps) / self.config.phase
+        phase_steps = state.num_steps % (phase + ramp_up)
+        if phase_steps < ramp_up:
+            return (1.0 - eta_min) * (phase_steps / ramp_up) + eta_min
+        sigma = (phase_steps - ramp_up) / phase
         return eta_min + (eta_max - eta_min) * (1 + math.cos(math.pi * sigma)) / 2
