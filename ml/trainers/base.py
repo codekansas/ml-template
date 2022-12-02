@@ -320,6 +320,7 @@ class BaseTrainer(BaseObjectWithPointers[TrainerConfigT], Generic[TrainerConfigT
             ckpt = torch.load(ckpt_path)
             task.on_after_load_checkpoint(ckpt)
             model.load_state_dict(ckpt["model"])
+            task.load_state_dict(ckpt["task"])
             optim.load_state_dict(ckpt["optim"])
             lr_sched.load_state_dict(ckpt["lr_sched"])
             self.load_state_dict(ckpt)
@@ -342,6 +343,7 @@ class BaseTrainer(BaseObjectWithPointers[TrainerConfigT], Generic[TrainerConfigT
                 ckpt_path.parent.mkdir(exist_ok=True, parents=True)
                 state_dict = {
                     "model": model.state_dict(),
+                    "task": task.state_dict(),
                     "optim": optim.state_dict(),
                     "lr_sched": lr_sched.state_dict(),
                     "state": state,
