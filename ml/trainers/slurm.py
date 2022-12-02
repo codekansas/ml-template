@@ -98,16 +98,20 @@ echo ""
 """.strip()
 
 
+def get_random_port() -> int:
+    return (hash(time.time()) + random.randint(100000)) % (65_535 - 10_000) + 10_000
+
+
 @dataclass
 class SlurmTrainerConfig(VanillaTrainerConfig):
-    partition: str = conf_field(II("oc.env:SLURM_PARTITION"), help="Which partition to launch")
-    time_limit: str = conf_field(II("oc.env:SLURM_TIME_LIMIT"), help="Time limit string (example: 3-00:00:00)")
+    partition: str = conf_field(II("oc.env:SLURM_PARTITION,none"), help="Which partition to launch")
+    time_limit: str = conf_field(II("oc.env:SLURM_TIME_LIMIT,3-00:00:00"), help="Time limit string")
     num_nodes: int = conf_field(MISSING, help="Total number of nodes to use")
-    gpus_per_node: int = conf_field(II("oc.env:SLURM_GPUS_PER_NODE"), help="Number of GPUs per node")
-    cpus_per_gpu: int = conf_field(II("oc.env:SLURM_CPUS_PER_GPU"), help="Number of CPUs per task")
+    gpus_per_node: int = conf_field(II("oc.env:SLURM_GPUS_PER_NODE,8"), help="Number of GPUs per node")
+    cpus_per_gpu: int = conf_field(II("oc.env:SLURM_CPUS_PER_GPU,1"), help="Number of CPUs per task")
     num_jobs: int = conf_field(1, help="Number of redundant jobs to launch")
     comment: Optional[str] = conf_field(None, help="An optional comment to add to the experiment")
-    master_port: int = conf_field(random.randint(10_000, 65_535), help="The master port to use")
+    master_port: int = conf_field(get_random_port, help="The master port to use")
 
 
 def ignore_signal(signum: int, _: FrameType | None) -> None:
