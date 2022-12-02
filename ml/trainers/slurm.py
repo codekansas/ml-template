@@ -99,7 +99,7 @@ echo ""
 
 
 def get_random_port() -> int:
-    return (hash(time.time()) + random.randint(100000)) % (65_535 - 10_000) + 10_000
+    return (hash(time.time()) + random.randint(0, 100000)) % (65_535 - 10_000) + 10_000
 
 
 @dataclass
