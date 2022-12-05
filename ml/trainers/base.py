@@ -356,7 +356,10 @@ class BaseTrainer(BaseObjectWithPointers[TrainerConfigT], Generic[TrainerConfigT
                         if base_ckpt.is_file():
                             base_ckpt.unlink()
                     last_ckpt_path.unlink()
-                last_ckpt_path.symlink_to(ckpt_path)
+                try:
+                    last_ckpt_path.symlink_to(ckpt_path)
+                except FileExistsError:
+                    logger.exception("Exception while trying to update %s", ckpt_path)
                 self.add_lock_file("ckpt", exists_ok=True)
                 task.on_after_save_checkpoint(ckpt_path)
 
