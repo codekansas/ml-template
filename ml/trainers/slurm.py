@@ -273,6 +273,7 @@ def slurm_main() -> None:
     objs = Objects.parse_raw_config(raw_config)  # type: ignore
     assert (trainer := objs.trainer) is not None
     if is_master():
+        trainer.add_lock_file("running", exists_ok=True)
         trainer.remove_lock_file("scheduled", missing_ok=True)
     train_main(objs)
 
