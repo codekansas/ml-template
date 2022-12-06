@@ -67,8 +67,6 @@ class TensorboardLogger(BaseLogger[TensorboardLoggerConfig]):
     def initialize(self, log_directory: Path) -> None:
         super().initialize(log_directory)
 
-        window_title = f"'{get_exp_name()} - TensorBoard'"
-
         if "TENSORBOARD_PORT" in os.environ:
             port, use_localhost = int(os.environ["TENSORBOARD_PORT"]), True
         else:
@@ -85,8 +83,6 @@ class TensorboardLogger(BaseLogger[TensorboardLoggerConfig]):
                     "tensorboard serve \\",
                     f"  --logdir {self.tensorboard_log_directory} \\",
                     "  --bind_all \\",
-                    "  --path_prefix '/tensorboard' \\",
-                    f"  --window_title {window_title} \\",
                     f"  --port {port} \\",
                     "  --reload_interval 15",
                 ]
@@ -99,10 +95,6 @@ class TensorboardLogger(BaseLogger[TensorboardLoggerConfig]):
                     "--logdir",
                     str(self.tensorboard_log_directory),
                     "--bind_all",
-                    "--path_prefix",
-                    "/tensorboard",
-                    "--window_title",
-                    window_title,
                     "--port",
                     str(port),
                     "--reload_interval",
