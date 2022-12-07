@@ -349,13 +349,13 @@ class BaseTrainer(BaseObjectWithPointers[TrainerConfigT], Generic[TrainerConfigT
                     "state": state,
                 }
                 self.update_state_dict(state_dict)
-                torch.save(state_dict, ckpt_path)
                 if last_ckpt_path.exists():
                     if self.checkpoint_config.only_save_most_recent:
                         base_ckpt = last_ckpt_path.resolve()
                         if base_ckpt.is_file():
                             base_ckpt.unlink()
                     last_ckpt_path.unlink()
+                torch.save(state_dict, ckpt_path)
                 try:
                     last_ckpt_path.symlink_to(ckpt_path)
                 except FileExistsError:
