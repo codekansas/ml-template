@@ -110,6 +110,7 @@ class SlurmTrainerConfig(VanillaTrainerConfig):
     num_nodes: int = conf_field(MISSING, help="Total number of nodes to use")
     gpus_per_node: int = conf_field(II("oc.env:SLURM_GPUS_PER_NODE,8"), help="Number of GPUs per node")
     cpus_per_gpu: int = conf_field(II("oc.env:SLURM_CPUS_PER_GPU,1"), help="Number of CPUs per task")
+    gpu_type: Optional[str] = conf_field(None, help="Specific GPU type to pass to gres")
     num_jobs: int = conf_field(1, help="Number of redundant jobs to launch")
     comment: Optional[str] = conf_field(None, help="An optional comment to add to the experiment")
     master_port: int = conf_field(get_random_port, help="The master port to use")
@@ -154,11 +155,12 @@ class SlurmTrainer(VanillaTrainer[SlurmTrainerConfig]):
     def launch(self) -> None:
         # Gets some configuration options.
         gpus_per_node = self.config.gpus_per_node
+        gpu_type = self.config.gpu_type
         tasks_per_node = gpus_per_node
         cpus_per_task = self.config.cpus_per_gpu
 
         # GRES and GPU Bind SBatch options.
-        gres = f"gpu:{gpus_per_node}"
+        gres = f"gpu:{gpus_per_node}" if gpu_type is None else f"gpu:{gpu_type}:{gpus_per_node}"
         gpu_bind = f"map_gpu:{','.join(str(i) for i in range(gpus_per_node))}"
 
         # Gets extra SBatch options.
