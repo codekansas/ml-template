@@ -162,7 +162,7 @@ class ShampooOptimizerConfig(BaseOptimizerConfig):
     amsgrad: bool = conf_field(False, help="Whether to use the AMSGrad variant of the algorithm")
 
 
-@register_optimizer("adamw", ShampooOptimizerConfig)
+@register_optimizer("shampoo", ShampooOptimizerConfig)
 class ShampooOptimizer(BaseOptimizer[ShampooOptimizerConfig]):
     def get(self, model: nn.Module) -> Shampoo:
         return Shampoo(
