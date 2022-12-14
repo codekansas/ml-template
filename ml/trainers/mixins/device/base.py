@@ -6,6 +6,7 @@ from typing import (
     Any,
     Callable,
     ContextManager,
+    Iterable,
     Iterator,
     List,
     Mapping,
@@ -37,19 +38,23 @@ def get_tasks_outstanding(dataloader_iter: _BaseDataLoaderIter) -> int:
     return -1
 
 
-class Prefetcher(Iterator[DeviceBatchT]):
+class Prefetcher(Iterable[DeviceBatchT]):
     """Helper class for pre-loading samples into device memory."""
-
-    dataloader_iter: _BaseDataLoaderIter
 
     def __init__(self, to_device_func: Callable[[Any], Any], dataloader: DataLoader) -> None:
         super().__init__()
 
         self.to_device_func = to_device_func
         self.dataloader = dataloader
+        self.dataloader_iter = iter(self.dataloader)
         self.next_sample = None
         self.get_batch_time = -1.0
         self.num_queued_samples = -1
+
+    def get_next_sample(self) -> Any:
+        sample = self.to_device_func(next(self.dataloader_iter))
+        self.num_queued_samples = get_tasks_outstanding(self.dataloader_iter)
+        return sample
 
     def prefetch(self) -> None:
         try:
@@ -113,41 +118,33 @@ class Prefetcher(Iterator[DeviceBatchT]):
             return [cls.recursive_apply(i, func) for i in item]
         return item
 
-    def __iter__(self) -> "Prefetcher":
-        self.dataloader_iter = iter(self.dataloader)
+    def __iter__(self) -> Iterator[DeviceBatchT]:
         self.prefetch()
-        return self
 
-    def __next__(self) -> DeviceBatchT:
-        with Timer("getting batch") as timer:
-            if self.next_sample is None:
-                raise StopIteration
-            sample = self.next_sample
-            self.prefetch()
-        self.get_batch_time = timer.elapsed_time
-        return sample
+        try:
+            while True:
+                if self.next_sample is None:
+                    raise StopIteration
+                with Timer("getting batch") as timer:
+                    sample = self.next_sample
+                    self.prefetch()
+                self.get_batch_time = timer.elapsed_time
+                yield sample
 
-    def get_next_sample(self) -> Any:
-        sample = self.to_device_func(next(self.dataloader_iter))
-        self.num_queued_samples = get_tasks_outstanding(self.dataloader_iter)
-        return sample
+        except StopIteration:
+            # Resets the dataloader if the iteration has completed.
+            self.dataloader_iter = iter(self.dataloader)
+            raise
 
 
-class InfinitePrefetcher(Iterator[DeviceBatchT]):
+class InfinitePrefetcher(Iterable[DeviceBatchT]):
     def __init__(self, prefetcher: Prefetcher[DeviceBatchT]) -> None:
         self.prefetcher = prefetcher
 
-    @functools.lru_cache()
-    def iter_func(self) -> Iterator[DeviceBatchT]:
+    def __iter__(self) -> Iterator[DeviceBatchT]:
         while True:
             for batch in self.prefetcher:
                 yield batch
-
-    def __iter__(self) -> Iterator[DeviceBatchT]:
-        return self.iter_func()
-
-    def __next__(self) -> DeviceBatchT:
-        return next(self.iter_func())
 
 
 class BaseDevice(ABC):

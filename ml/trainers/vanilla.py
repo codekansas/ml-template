@@ -285,7 +285,7 @@ class VanillaTrainer(
         with Timer("getting prefetchers", 0.1):
             train_pf = self._device.get_prefetcher(train_dl)
             valid_pf = self._device.get_prefetcher(valid_dl)
-            valid_pf_infinite = InfinitePrefetcher(valid_pf)
+            valid_pf_iter = iter(InfinitePrefetcher(valid_pf))
 
         try:
             with contextlib.ExitStack() as ctx:
@@ -298,7 +298,7 @@ class VanillaTrainer(
                         for _ in range(num_init_valid_steps):
                             self.val_step(
                                 task_model=task_model,
-                                batch=next(valid_pf_infinite),
+                                batch=next(valid_pf_iter),
                                 state=state,
                                 task=task,
                                 model=model,
@@ -332,7 +332,7 @@ class VanillaTrainer(
                         if valid_every_n_steps is not None and state.num_steps % valid_every_n_steps == 0:
                             self.val_step(
                                 task_model=task_model,
-                                batch=next(valid_pf_infinite),
+                                batch=next(valid_pf_iter),
                                 state=state,
                                 task=task,
                                 model=model,
