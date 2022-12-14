@@ -238,15 +238,19 @@ class VanillaTrainer(
 
         # Saves the config at the start of training.
         if is_master():
-            self.save_config()
+            with Timer("saving config"):
+                self.save_config()
 
         # Builds a mega-model.
-        task_model: nn.Module = self.get_task_model(task, model)
-        self.maybe_add_grad_clipping(task_model)
+        with Timer("building task model"):
+            task_model: nn.Module = self.get_task_model(task, model)
+            self.maybe_add_grad_clipping(task_model)
 
         # Gets the optimizer and learning rate scheduler.
-        optim = optimizer.get(model)
-        lr_sched = lr_scheduler.get(optim)
+        with Timer("building optimizer", 0.1):
+            optim = optimizer.get(model)
+        with Timer("building learning rate scheduler", 0.1):
+            lr_sched = lr_scheduler.get(optim)
 
         # Loads an existing checkpoint, if one exists.
         if (ckpt_path := self.get_ckpt_path()).exists():
@@ -268,17 +272,20 @@ class VanillaTrainer(
         signal.signal(signal.SIGUSR1, on_exit)
 
         # Gets the datasets.
-        train_ds = task.get_dataset("train")
-        valid_ds = task.get_dataset("valid")
+        with Timer("getting datasets", 0.1):
+            train_ds = task.get_dataset("train")
+            valid_ds = task.get_dataset("valid")
 
         # Gets the dataloaders.
-        train_dl = task.get_dataloader(train_ds, "train")
-        valid_dl = task.get_dataloader(valid_ds, "valid")
+        with Timer("getting dataloaders", 0.1):
+            train_dl = task.get_dataloader(train_ds, "train")
+            valid_dl = task.get_dataloader(valid_ds, "valid")
 
         # Gets the prefetchers.
-        train_pf = self._device.get_prefetcher(train_dl)
-        valid_pf = self._device.get_prefetcher(valid_dl)
-        valid_pf_infinite = InfinitePrefetcher(valid_pf)
+        with Timer("getting prefetchers", 0.1):
+            train_pf = self._device.get_prefetcher(train_dl)
+            valid_pf = self._device.get_prefetcher(valid_dl)
+            valid_pf_infinite = InfinitePrefetcher(valid_pf)
 
         try:
             with contextlib.ExitStack() as ctx:
