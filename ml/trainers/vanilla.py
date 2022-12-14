@@ -293,15 +293,16 @@ class VanillaTrainer(
                 if profile is not None:
                     ctx.enter_context(profile)
 
-                if (num_init_valid_steps := self.config.validation.num_init_valid_steps) is not None:
-                    for _ in range(num_init_valid_steps):
-                        self.val_step(
-                            task_model=task_model,
-                            batch=next(valid_pf_infinite),
-                            state=state,
-                            task=task,
-                            model=model,
-                        )
+                with Timer("initial validation step(s)"):
+                    if (num_init_valid_steps := self.config.validation.num_init_valid_steps) is not None:
+                        for _ in range(num_init_valid_steps):
+                            self.val_step(
+                                task_model=task_model,
+                                batch=next(valid_pf_infinite),
+                                state=state,
+                                task=task,
+                                model=model,
+                            )
 
                 while True:
                     with self.step_context("on_epoch_start"):
