@@ -32,8 +32,8 @@ def get_exp_name(prefix: Optional[str] = None, args: Optional[List[str]] = None)
     return ".".join(p for p in parts if p)
 
 
-def get_stem(path: Path) -> str:
-    path = path.resolve()
+def get_stem(path_str: str) -> str:
+    path = Path(path_str).resolve()
 
     # Special handling for paths that are relative to the configs directory.
     for parent in path.parents:
