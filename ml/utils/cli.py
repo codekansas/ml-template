@@ -32,6 +32,17 @@ def get_exp_name(prefix: Optional[str] = None, args: Optional[List[str]] = None)
     return ".".join(p for p in parts if p)
 
 
+def get_stem(path: Path) -> str:
+    path = path.resolve()
+
+    # Special handling for paths that are relative to the configs directory.
+    for parent in path.parents:
+        if parent.stem == "configs":
+            return ".".join(path.relative_to(parent).parts)
+
+    return path.stem
+
+
 def parse_cli(args: List[str]) -> DictConfig:
     """Parses the remaining command-line arguments to a raw config.
 
@@ -51,7 +62,6 @@ def parse_cli(args: List[str]) -> DictConfig:
 
     # Builds the configs from the command-line arguments.
     config = DictConfig({})
-    get_stem = lambda new_path: Path(new_path).stem
     argument_parts: List[str] = []
     paths: List[Path] = []
 
