@@ -35,6 +35,9 @@ def get_exp_name(prefix: Optional[str] = None, args: Optional[List[str]] = None)
 def get_stem(path_str: str) -> str:
     path = Path(path_str).resolve()
 
+    # Remove the `.yaml` suffix.
+    path = path.parent / path.stem
+
     # Special handling for paths that are relative to the configs directory.
     for parent in path.parents:
         if parent.stem == "configs":
