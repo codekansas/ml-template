@@ -22,4 +22,4 @@ def has_gpu() -> bool:
 def pytest_runtest_setup(item: Function) -> None:
     for mark in item.iter_markers():
         if mark.name == "has_gpu" and not has_gpu():
-            pytest.skip("Skipping because this test requres a GPU and none is available")
+            pytest.skip("Skipping because this test requires a GPU and none is available")
